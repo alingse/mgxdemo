@@ -21,6 +21,8 @@ class Message(Base):
     session_id = Column(String, ForeignKey("sessions.id"), nullable=False)
     role = Column(Enum(MessageRole), nullable=False)
     content = Column(Text, nullable=False)
+    reasoning_content = Column(Text, nullable=True)  # DeepSeek 思考模式内容
+    tool_calls = Column(Text, nullable=True)  # 工具调用记录（JSON 字符串）
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     # Relationships

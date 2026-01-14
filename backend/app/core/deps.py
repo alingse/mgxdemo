@@ -10,11 +10,29 @@ security = HTTPBearer()
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    authorization: Optional[HTTPAuthorizationCredentials] = Depends(
+        HTTPBearer(auto_error=False)
+    ),
+    access_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db)
 ) -> User:
-    """Get the current authenticated user."""
-    token = credentials.credentials
+    """Get the current authenticated user from Bearer token or Cookie."""
+    token = None
+
+    # Try Bearer token first
+    if authorization:
+        token = authorization.credentials
+    # Try cookie
+    elif access_token:
+        token = access_token
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     payload = decode_access_token(token)
 
     if payload is None:

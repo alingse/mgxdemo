@@ -3,13 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Agent Sandbox - 用 AI 创建你的网页应用</title>
+    <title>Aeio Dev Agent - AI-Powered Development Environment</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body class="homepage-body">
+    <!-- Header -->
+    <header class="landing-header">
+        <div class="header-logo">Aeio Dev Agent</div>
+        <div class="header-actions">
+            <!-- 未登录状态 -->
+            <div id="unauthActions" class="header-actions-unauth hidden">
+                <a href="/sign-in" class="btn btn-secondary">登录</a>
+                <a href="/register" class="btn btn-primary">注册</a>
+            </div>
+            <!-- 已登录状态 -->
+            <div id="authActions" class="header-actions-auth hidden">
+                <span id="userInfo"></span>
+                <button id="logoutBtn" class="btn btn-secondary">登出</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 侧边栏触发按钮 -->
+    <button id="sidebarToggle" class="sidebar-toggle hidden" aria-label="打开侧边栏">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="15" y2="6"></line>
+            <line x1="3" y1="12" x2="15" y2="12"></line>
+            <line x1="3" y1="18" x2="15" y2="18"></line>
+            <path d="m21 12-4 4 4 4M21 6v12"></path>
+        </svg>
+    </button>
+
+    <!-- 侧边栏 -->
+    <aside id="landingSidebar" class="landing-sidebar hidden">
+        <div class="sidebar-header">
+            <h2>我的项目</h2>
+            <button id="newSessionBtn" class="btn-icon" title="新建项目">+</button>
+        </div>
+        <div id="sessionsList" class="sessions-list">
+            <!-- 会话列表 -->
+        </div>
+    </aside>
+
     <div class="hero-container">
-        <h1>AI Agent Sandbox</h1>
-        <p class="subtitle">用自然语言描述，让 AI 为你创建网页应用</p>
+        <h1>Aeio Dev Agent</h1>
+        <p class="subtitle">AI 驱动的智能开发环境，自然语言构建应用</p>
 
         <!-- Main form -->
         <form id="mainForm" class="main-form">
@@ -17,7 +55,7 @@
                 <textarea
                     id="mainInput"
                     class="main-input"
-                    placeholder="告诉 AI 你想要什么，比如：做一个 Todo List..."
+                    placeholder="描述你想构建的应用，例如：创建一个任务管理系统..."
                     rows="3"
                 ></textarea>
                 <button type="submit" class="submit-btn" id="submitBtn">
@@ -25,35 +63,35 @@
                         <line x1="22" y1="2" x2="11" y2="13"></line>
                         <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                     </svg>
-                    开始创建
+                    构建应用
                 </button>
             </div>
         </form>
 
         <!-- Example tags -->
         <div class="examples">
-            <div class="example-tag" data-text="帮我做一个 Todo List 应用">📝 Todo List</div>
-            <div class="example-tag" data-text="创建一个简单的计算器">🧮 计算器</div>
-            <div class="example-tag" data-text="做一个倒计时器">⏰ 倒计时</div>
-            <div class="example-tag" data-text="创建一个天气预报展示页">🌤️ 天气预报</div>
+            <div class="example-tag" data-text="创建一个任务管理系统">📋 任务管理</div>
+            <div class="example-tag" data-text="构建一个数据可视化仪表板">📊 数据看板</div>
+            <div class="example-tag" data-text="开发一个实时聊天应用">💬 实时通讯</div>
+            <div class="example-tag" data-text="制作一个在线代码编辑器">💻 代码编辑器</div>
         </div>
 
         <!-- Features -->
         <div class="features">
             <div class="feature">
                 <div class="feature-icon">💬</div>
-                <div class="feature-title">对话式创建</div>
-                <div class="feature-desc">用自然语言描述需求</div>
+                <div class="feature-title">自然语言交互</div>
+                <div class="feature-desc">描述需求即可构建应用</div>
             </div>
             <div class="feature">
                 <div class="feature-icon">⚡</div>
-                <div class="feature-title">实时预览</div>
-                <div class="feature-desc">边聊边看效果</div>
+                <div class="feature-title">实时预览渲染</div>
+                <div class="feature-desc">即时查看开发成果</div>
             </div>
             <div class="feature">
                 <div class="feature-icon">🎨</div>
-                <div class="feature-title">随心修改</div>
-                <div class="feature-desc">不满意就继续调整</div>
+                <div class="feature-title">智能代码生成</div>
+                <div class="feature-desc">AI 驱动的开发助手</div>
             </div>
         </div>
     </div>

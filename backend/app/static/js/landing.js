@@ -12,13 +12,170 @@ const modalClose = document.getElementById('modalClose');
 const examples = document.querySelectorAll('.example-tag');
 const authTabs = document.querySelectorAll('.auth-tab');
 
-// Initialize landing page
+// New DOM elements for header and sidebar
+const unauthActions = document.getElementById('unauthActions');
+const authActions = document.getElementById('authActions');
+const userInfo = document.getElementById('userInfo');
+const logoutBtn = document.getElementById('logoutBtn');
+const sidebarToggle = document.getElementById('sidebarToggle');
+const landingSidebar = document.getElementById('landingSidebar');
+const sessionsList = document.getElementById('sessionsList');
+const newSessionBtn = document.getElementById('newSessionBtn');
+
+// 静默检查认证状态，不触发 401 重定向
+async function checkAuthStatus() {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        return null;
+    }
+
+    // 直接调用 fetch，不使用 api.getCurrentUser()（因为 api.js 会自动重定向）
+    const response = await fetch('/api/auth/me', {
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        }
+    });
+
+    if (response.status === 401) {
+        return null;
+    }
+
+    if (!response.ok) {
+        return null;
+    }
+
+    return response.json();
+}
+
+// 初始化 landing page
 async function initLanding() {
-    // Check auth status
-    currentUser = await checkAuth();
+    // 静默检查认证状态
+    currentUser = await checkAuthStatus();
+    updateHeaderUI();
+
+    // 如果已登录，加载会话列表
+    if (currentUser) {
+        loadSessions();
+    }
 
     // Setup event listeners
     setupEventListeners();
+}
+
+// 更新 header UI
+function updateHeaderUI() {
+    if (currentUser) {
+        // 已登录
+        unauthActions.classList.add('hidden');
+        authActions.classList.remove('hidden');
+        userInfo.textContent = currentUser.username;
+        sidebarToggle.classList.remove('hidden');
+    } else {
+        // 未登录
+        unauthActions.classList.remove('hidden');
+        authActions.classList.add('hidden');
+        sidebarToggle.classList.add('hidden');
+    }
+}
+
+// 加载会话列表
+async function loadSessions() {
+    try {
+        const sessions = await api.listSessions();
+        renderSessions(sessions);
+    } catch (error) {
+        console.error('Failed to load sessions:', error);
+    }
+}
+
+// 渲染会话列表
+function renderSessions(sessions) {
+    sessionsList.innerHTML = '';
+
+    if (sessions.length === 0) {
+        sessionsList.innerHTML = '<p class="empty-message">暂无会话</p>';
+        return;
+    }
+
+    sessions.forEach(session => {
+        const item = document.createElement('div');
+        item.className = 'session-item';
+        item.innerHTML = `
+            <div class="session-title">${escapeHtml(session.title)}</div>
+            <div class="session-time">${formatTime(session.updated_at)}</div>
+        `;
+        item.addEventListener('click', () => {
+            // 跳转到聊天工作台页面
+            window.location.href = `/chat/${session.id}`;
+        });
+        sessionsList.appendChild(item);
+    });
+}
+
+// 辅助函数
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatTime(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return '刚刚';
+    if (diffMins < 60) return `${diffMins}分钟前`;
+    if (diffHours < 24) return `${diffHours}小时前`;
+    if (diffDays < 7) return `${diffDays}天前`;
+    return date.toLocaleDateString('zh-CN');
+}
+
+// 侧边栏切换
+function toggleSidebar() {
+    landingSidebar.classList.toggle('open');
+}
+
+// 新建会话（从首页）
+async function createNewSessionFromLanding() {
+    const now = new Date();
+    const timestamp = now.toLocaleString('zh-CN', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    const title = `会话 ${timestamp}`;
+
+    try {
+        const session = await api.createSession(title);
+        // 跳转到聊天工作台
+        window.location.href = `/chat/${session.id}`;
+    } catch (error) {
+        console.error('Failed to create session:', error);
+        alert('创建会话失败: ' + error.message);
+    }
+}
+
+// 登出处理
+async function handleLogout() {
+    try {
+        await api.logout();
+    } catch (error) {
+        console.error('Logout error:', error);
+    } finally {
+        localStorage.removeItem('access_token');
+        currentUser = null;
+        updateHeaderUI();
+        // 清空会话列表
+        sessionsList.innerHTML = '';
+        // 关闭侧边栏
+        landingSidebar.classList.remove('open');
+    }
 }
 
 // Setup all event listeners
@@ -43,6 +200,17 @@ function setupEventListeners() {
     // Modal forms
     document.getElementById('modalLoginForm').addEventListener('submit', handleModalLogin);
     document.getElementById('modalRegisterForm').addEventListener('submit', handleModalRegister);
+
+    // Header and Sidebar events
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', toggleSidebar);
+    }
+    if (newSessionBtn) {
+        newSessionBtn.addEventListener('click', createNewSessionFromLanding);
+    }
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', handleLogout);
+    }
 }
 
 // Handle main form submission
@@ -164,10 +332,12 @@ async function handleModalLogin(e) {
     try {
         errorDiv.textContent = '';
         await api.login(username, password);
-        currentUser = await checkAuth();
+        currentUser = await checkAuthStatus();
 
-        // Hide modal and proceed with session creation
+        // Hide modal and update UI
         hideModal();
+        updateHeaderUI();
+        loadSessions();
 
         if (pendingInput) {
             await createSessionAndRedirect(pendingInput);
@@ -203,10 +373,12 @@ async function handleModalRegister(e) {
         await api.register(username, email, password);
         // Auto login after registration
         await api.login(username, password);
-        currentUser = await checkAuth();
+        currentUser = await checkAuthStatus();
 
-        // Hide modal and proceed with session creation
+        // Hide modal and update UI
         hideModal();
+        updateHeaderUI();
+        loadSessions();
 
         if (pendingInput) {
             await createSessionAndRedirect(pendingInput);

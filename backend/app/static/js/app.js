@@ -1,136 +1,170 @@
-// App state
+// 应用状态
 let currentSession = null;
 let sessions = [];
 let currentUser = null;
 let sidebarVisible = false;
 
-// DOM elements
-const sessionSidebar = document.getElementById('sessionSidebar');
-const sessionsList = document.getElementById('sessionsList');
-const messagesContainer = document.getElementById('messagesContainer');
-const messageForm = document.getElementById('messageForm');
-const messageInput = document.getElementById('messageInput');
-const previewFrame = document.getElementById('previewFrame');
-const userInfo = document.getElementById('userInfo');
-const newSessionBtn = document.getElementById('newSessionBtn');
-const logoutBtn = document.getElementById('logoutBtn');
-const refreshPreviewBtn = document.getElementById('refreshPreviewBtn');
-const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
-const currentSessionTitle = document.getElementById('currentSessionTitle');
+// DOM 元素引用
+const elements = {
+    sessionSidebar: document.getElementById('sessionSidebar'),
+    sessionsList: document.getElementById('sessionsList'),
+    messagesContainer: document.getElementById('messagesContainer'),
+    messageForm: document.getElementById('messageForm'),
+    messageInput: document.getElementById('messageInput'),
+    previewFrame: document.getElementById('previewFrame'),
+    userInfo: document.getElementById('userInfo'),
+    newSessionBtn: document.getElementById('newSessionBtn'),
+    logoutBtn: document.getElementById('logoutBtn'),
+    refreshPreviewBtn: document.getElementById('refreshPreviewBtn'),
+    showSessionsBtn: document.getElementById('showSessionsBtn'),
+    newSessionInlineBtn: document.getElementById('newSessionInlineBtn'),
+    currentSessionTitle: document.getElementById('currentSessionTitle')
+};
 
-// Extract session_id from URL
-function getSessionIdFromURL() {
-    const pathParts = window.location.pathname.split('/');
-    const sessionId = pathParts[pathParts.length - 1];
+// 工具函数
+const utils = {
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    },
 
-    // Validate if it's a valid UUID hex format (32 characters)
-    if (sessionId && /^[0-9a-f]{32}$/.test(sessionId)) {
-        return sessionId;
+    renderMarkdown(text) {
+        if (!text) return '';
+        return text
+            .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+            .replace(/\n/g, '<br>');
+    },
+
+    getSessionIdFromURL() {
+        const pathParts = window.location.pathname.split('/');
+        const sessionId = pathParts[pathParts.length - 1];
+        return sessionId && /^[0-9a-f]{32}$/.test(sessionId) ? sessionId : null;
+    },
+
+    generateSessionTitle() {
+        const now = new Date();
+        const timestamp = now.toLocaleString('zh-CN', {
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        return `会话 ${timestamp}`;
+    },
+
+    formatDate(dateStr, locale = 'zh-CN') {
+        return new Date(dateStr).toLocaleString(locale);
+    },
+
+    formatTime(dateStr) {
+        return new Date(dateStr).toLocaleTimeString('zh-CN');
     }
-    return null;
-}
+};
 
-// Initialize app
-async function initApp() {
-    // Check auth
-    currentUser = await checkAuth();
-    if (!currentUser) {
-        // Store intended URL for redirect after login
-        localStorage.setItem('intended_url', window.location.pathname);
-        window.location.href = '/sign-in';
-        return;
-    }
+// UI 操作
+const ui = {
+    showAIStatus(status, text) {
+        const statusDiv = document.getElementById('ai-status');
+        const statusText = document.getElementById('status-text');
+        const statusDot = statusDiv.querySelector('.status-dot');
 
-    // Set user info
-    userInfo.textContent = currentUser.username;
+        statusDiv.classList.remove('hidden');
+        statusText.textContent = text;
+        statusDot.classList.remove('thinking', 'tool-calling', 'error');
 
-    // Extract session_id from URL
-    const sessionId = getSessionIdFromURL();
+        if (status === 'thinking') {
+            statusDot.classList.add('thinking');
+        } else if (status === 'tool-calling') {
+            statusDot.classList.add('tool-calling');
+        } else if (status === 'error') {
+            statusDot.classList.add('error');
+        }
+    },
 
-    if (sessionId) {
-        // Load specific session from URL
-        try {
-            // Load all sessions first
-            await loadSessions();
+    hideAIStatus() {
+        document.getElementById('ai-status').classList.add('hidden');
+    },
 
-            // Try to get the specific session
-            const session = await api.getSession(sessionId);
+    toggleSidebar() {
+        sidebarVisible = !sidebarVisible;
+        elements.sessionSidebar.classList.toggle('hidden', !sidebarVisible);
+    },
 
-            // Find and select the session
-            const targetSession = sessions.find(s => s.id === sessionId);
-            if (targetSession) {
-                await selectSession(targetSession);
-            } else {
-                // Session not in list (shouldn't happen)
-                console.error('Session not found in list');
-                window.location.href = '/';
-                return;
-            }
-        } catch (error) {
-            console.error('Failed to load session:', error);
-            alert('会话不存在或无权访问');
-            window.location.href = '/';
+    showSidebar() {
+        sidebarVisible = true;
+        elements.sessionSidebar.classList.remove('hidden');
+    },
+
+    hideSidebar() {
+        sidebarVisible = false;
+        elements.sessionSidebar.classList.add('hidden');
+    },
+
+    updatePreview() {
+        if (!currentSession) {
+            elements.previewFrame.srcdoc = `
+                <html><body style="display:flex;justify-content:center;align-items:center;
+                height:100vh;margin:0;font-family:sans-serif;color:#666;">
+                <p>选择或创建一个会话开始预览</p></body></html>
+            `;
             return;
         }
-    } else {
-        // No session_id in URL, load all sessions
-        await loadSessions();
+        elements.previewFrame.src = api.getPreviewUrl(currentSession.id);
+    },
 
-        // Auto-create session if user has no sessions
-        if (sessions.length === 0) {
-            try {
-                const session = await api.createSession('新会话');
-                sessions.unshift(session);
-                await selectSession(session);
-            } catch (error) {
-                console.error('Failed to auto-create session:', error);
-            }
-        }
-    }
-
-    // Check for pending message from home page
-    const pendingMessage = localStorage.getItem('pending_message');
-    if (pendingMessage) {
-        localStorage.removeItem('pending_message');
-
-        // If no session is selected, select the first one
-        if (!currentSession && sessions.length > 0) {
-            await selectSession(sessions[0]);
-        }
-
-        // Fill in the message input and auto-send
+    refreshPreview() {
         if (currentSession) {
-            messageInput.value = pendingMessage;
-            // Auto-submit the pending message
-            setTimeout(() => {
-                messageForm.dispatchEvent(new Event('submit'));
-            }, 500);
+            elements.previewFrame.src = api.getPreviewUrl(currentSession.id);
         }
+    },
+
+    enableMessageForm() {
+        elements.messageInput.disabled = false;
+        const sendBtn = elements.messageForm.querySelector('.send-icon-btn');
+        if (sendBtn) sendBtn.disabled = false;
+    },
+
+    showEmptyMessage(text) {
+        const emptyState = document.createElement('p');
+        emptyState.className = 'empty-state';
+        emptyState.textContent = text;
+        elements.messagesContainer.textContent = '';
+        elements.messagesContainer.appendChild(emptyState);
+    },
+
+    showSystemMessage(text) {
+        const div = document.createElement('div');
+        div.className = 'message message-system';
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble';
+        bubble.textContent = text;
+        div.appendChild(bubble);
+        elements.messagesContainer.appendChild(div);
     }
+};
 
-    // Setup event listeners
-    setupEventListeners();
-}
-
-// Load sessions
+// 会话管理
 async function loadSessions() {
     try {
         sessions = await api.listSessions();
         renderSessions();
     } catch (error) {
-        console.error('Failed to load sessions:', error);
+        console.error('加载会话失败:', error);
     }
 }
 
-// Render sessions
 function renderSessions() {
-    sessionsList.textContent = '';
+    elements.sessionsList.textContent = '';
 
     if (sessions.length === 0) {
         const emptyMsg = document.createElement('p');
         emptyMsg.style.cssText = 'padding: 15px; color: #999; text-align: center;';
         emptyMsg.textContent = '暂无会话';
-        sessionsList.appendChild(emptyMsg);
+        elements.sessionsList.appendChild(emptyMsg);
         return;
     }
 
@@ -147,34 +181,46 @@ function renderSessions() {
 
         const time = document.createElement('div');
         time.className = 'session-item-time';
-        time.textContent = new Date(session.updated_at).toLocaleString('zh-CN');
+        time.textContent = utils.formatDate(session.updated_at);
 
         item.appendChild(title);
         item.appendChild(time);
-
         item.addEventListener('click', () => selectSession(session));
-        sessionsList.appendChild(item);
+        elements.sessionsList.appendChild(item);
     });
 }
 
-// Select session
 async function selectSession(session) {
     currentSession = session;
-    currentSessionTitle.textContent = session.title;
+    elements.currentSessionTitle.textContent = session.title;
     renderSessions();
     await loadMessages();
-    updatePreview();
-    enableMessageForm();
+    ui.updatePreview();
+    ui.enableMessageForm();
 }
 
-// Load messages
+async function createNewSession() {
+    const title = utils.generateSessionTitle();
+
+    try {
+        const session = await api.createSession(title);
+        sessions.unshift(session);
+        await selectSession(session);
+
+        if (sidebarVisible) {
+            ui.toggleSidebar();
+        }
+    } catch (error) {
+        console.error('创建会话失败:', error);
+        elements.messagesContainer.textContent = '';
+        ui.showSystemMessage(`创建会话失败: ${error.message}`);
+    }
+}
+
+// 消息管理
 async function loadMessages() {
     if (!currentSession) {
-        const emptyState = document.createElement('p');
-        emptyState.className = 'empty-state';
-        emptyState.textContent = '选择或创建一个会话开始聊天';
-        messagesContainer.textContent = '';
-        messagesContainer.appendChild(emptyState);
+        ui.showEmptyMessage('选择或创建一个会话开始聊天');
         return;
     }
 
@@ -182,24 +228,16 @@ async function loadMessages() {
         const messages = await api.listMessages(currentSession.id);
         renderMessages(messages);
     } catch (error) {
-        console.error('Failed to load messages:', error);
-        const errorMsg = document.createElement('p');
-        errorMsg.className = 'empty-state';
-        errorMsg.textContent = '加载消息失败';
-        messagesContainer.textContent = '';
-        messagesContainer.appendChild(errorMsg);
+        console.error('加载消息失败:', error);
+        ui.showEmptyMessage('加载消息失败');
     }
 }
 
-// Render messages
 function renderMessages(messages) {
-    messagesContainer.textContent = '';
+    elements.messagesContainer.textContent = '';
 
     if (messages.length === 0) {
-        const emptyState = document.createElement('p');
-        emptyState.className = 'empty-state';
-        emptyState.textContent = '开始聊天吧';
-        messagesContainer.appendChild(emptyState);
+        ui.showEmptyMessage('开始聊天吧');
         return;
     }
 
@@ -207,118 +245,161 @@ function renderMessages(messages) {
         const div = document.createElement('div');
         div.className = `message message-${message.role}`;
 
+        // 显示思考内容
+        if (message.reasoning_content) {
+            const reasoningDiv = document.createElement('div');
+            reasoningDiv.className = 'message-reasoning';
+            reasoningDiv.innerHTML = `
+                <details>
+                    <summary>🤔 思考过程</summary>
+                    <pre>${utils.escapeHtml(message.reasoning_content)}</pre>
+                </details>
+            `;
+            div.appendChild(reasoningDiv);
+        }
+
+        // 显示工具调用
+        if (message.tool_calls && message.tool_calls.length > 0) {
+            const toolsDiv = document.createElement('div');
+            toolsDiv.className = 'message-tools';
+            const toolsHtml = `
+                <details><summary>🔧 工具调用</summary><ul>
+                ${message.tool_calls.map(tool => `
+                    <li>
+                        <strong>${utils.escapeHtml(tool.name)}</strong>
+                        <pre>${utils.escapeHtml(JSON.stringify(tool.arguments, null, 2))}</pre>
+                    </li>
+                `).join('')}
+                </ul></details>
+            `;
+            toolsDiv.innerHTML = toolsHtml;
+            div.appendChild(toolsDiv);
+        }
+
+        // 显示消息内容
         const bubble = document.createElement('div');
         bubble.className = 'message-bubble';
-        bubble.textContent = message.content;
+
+        if (message.role === 'assistant') {
+            bubble.innerHTML = utils.renderMarkdown(message.content);
+        } else {
+            bubble.textContent = message.content;
+        }
 
         const time = document.createElement('div');
         time.className = 'message-time';
-        time.textContent = new Date(message.created_at).toLocaleTimeString('zh-CN');
+        time.textContent = utils.formatTime(message.created_at);
 
         div.appendChild(bubble);
         div.appendChild(time);
-        messagesContainer.appendChild(div);
+        elements.messagesContainer.appendChild(div);
     });
 
-    // Scroll to bottom
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
 }
 
-// Create new session
-async function createNewSession() {
-    const title = prompt('请输入会话标题:', '新会话');
-    if (!title) return;
-
-    try {
-        const session = await api.createSession(title);
-        sessions.unshift(session);
-        await selectSession(session);
-    } catch (error) {
-        alert('创建会话失败: ' + error.message);
-    }
-}
-
-// Send message
 async function sendMessage(e) {
     e.preventDefault();
 
-    const content = messageInput.value.trim();
+    const content = elements.messageInput.value.trim();
     if (!content || !currentSession) return;
 
-    // Disable input
-    messageInput.disabled = true;
-    messageInput.value = '';
+    elements.messageInput.disabled = true;
+    elements.messageInput.value = '';
+    ui.showAIStatus('thinking', 'AI 正在思考...');
 
     try {
-        const message = await api.createMessage(currentSession.id, content);
-        // Reload messages to get the full conversation
+        await api.createMessage(currentSession.id, content);
         await loadMessages();
-        // Refresh preview if files were updated
-        setTimeout(() => refreshPreview(), 500);
+        setTimeout(() => ui.refreshPreview(), 500);
+        ui.hideAIStatus();
     } catch (error) {
-        alert('发送消息失败: ' + error.message);
+        ui.showAIStatus('error', '消息发送失败，请重试');
+        console.error('发送消息失败:', error);
     } finally {
-        messageInput.disabled = false;
-        messageInput.focus();
+        elements.messageInput.disabled = false;
+        elements.messageInput.focus();
     }
 }
 
-// Update preview
-function updatePreview() {
-    if (!currentSession) {
-        previewFrame.srcdoc = '<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;margin:0;font-family:sans-serif;color:#666;"><p>选择或创建一个会话开始预览</p></body></html>';
+// 应用初始化
+async function initApp() {
+    currentUser = await checkAuth();
+    if (!currentUser) {
+        localStorage.setItem('intended_url', window.location.pathname);
+        window.location.href = '/sign-in';
         return;
     }
 
-    const previewUrl = api.getPreviewUrl(currentSession.id);
-    previewFrame.src = previewUrl;
-}
+    elements.userInfo.textContent = currentUser.username;
+    const sessionId = utils.getSessionIdFromURL();
 
-// Refresh preview
-function refreshPreview() {
-    if (currentSession) {
-        const previewUrl = api.getPreviewUrl(currentSession.id);
-        previewFrame.src = previewUrl;
-    }
-}
-
-// Enable message form
-function enableMessageForm() {
-    messageInput.disabled = false;
-    const sendBtn = messageForm.querySelector('.send-icon-btn');
-    if (sendBtn) {
-        sendBtn.disabled = false;
-    }
-}
-
-// Toggle sidebar
-function toggleSidebar() {
-    sidebarVisible = !sidebarVisible;
-    if (sidebarVisible) {
-        sessionSidebar.classList.remove('hidden');
+    if (sessionId) {
+        try {
+            await loadSessions();
+            const targetSession = sessions.find(s => s.id === sessionId);
+            if (targetSession) {
+                await selectSession(targetSession);
+            } else {
+                console.error('会话不存在');
+                window.location.href = '/';
+            }
+        } catch (error) {
+            console.error('加载会话失败:', error);
+            alert('会话不存在或无权访问');
+            window.location.href = '/';
+        }
     } else {
-        sessionSidebar.classList.add('hidden');
+        await loadSessions();
+
+        if (sessions.length === 0) {
+            try {
+                const session = await api.createSession('新会话');
+                sessions.unshift(session);
+                await selectSession(session);
+            } catch (error) {
+                console.error('自动创建会话失败:', error);
+            }
+        }
     }
+
+    // 处理待发送消息
+    const pendingMessage = localStorage.getItem('pending_message');
+    if (pendingMessage) {
+        localStorage.removeItem('pending_message');
+
+        if (!currentSession && sessions.length > 0) {
+            await selectSession(sessions[0]);
+        }
+
+        if (currentSession) {
+            elements.messageInput.value = pendingMessage;
+            setTimeout(() => {
+                elements.messageForm.dispatchEvent(new Event('submit'));
+            }, 500);
+        }
+    }
+
+    setupEventListeners();
 }
 
-// Setup event listeners
 function setupEventListeners() {
-    newSessionBtn.addEventListener('click', createNewSession);
-    messageForm.addEventListener('submit', sendMessage);
-    logoutBtn.addEventListener('click', handleLogout);
-    refreshPreviewBtn.addEventListener('click', refreshPreview);
-    toggleSidebarBtn.addEventListener('click', toggleSidebar);
+    elements.newSessionBtn.addEventListener('click', createNewSession);
+    elements.messageForm.addEventListener('submit', sendMessage);
+    elements.logoutBtn.addEventListener('click', handleLogout);
+    elements.refreshPreviewBtn.addEventListener('click', ui.refreshPreview);
+    elements.showSessionsBtn.addEventListener('click', ui.showSidebar);
+    elements.newSessionInlineBtn.addEventListener('click', createNewSession);
 
-    // Enter key to send message
-    messageInput.addEventListener('keypress', (e) => {
+    elements.messageInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            if (!messageInput.disabled && messageInput.value.trim()) {
-                messageForm.dispatchEvent(new Event('submit'));
+            if (!elements.messageInput.disabled && elements.messageInput.value.trim()) {
+                elements.messageForm.dispatchEvent(new Event('submit'));
             }
         }
     });
 }
 
-// Initialize on page load
+// 启动应用
 initApp();

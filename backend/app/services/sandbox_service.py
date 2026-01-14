@@ -190,3 +190,9 @@ h1 {
 def get_sandbox_service() -> SandboxService:
     """Get the sandbox service instance."""
     return SandboxService()
+
+
+def get_sandbox_path(user_id: int, session_id: str) -> Path:
+    """Get the sandbox directory path for a user session."""
+    service = get_sandbox_service()
+    return service._get_sandbox_path(user_id, session_id)

@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Agent Sandbox</title>
+    <title>Aeio Dev Agent - Workspace</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
     <div id="app">
         <header class="header">
-            <h1>AI Agent Sandbox</h1>
+            <h1>Aeio Dev Agent</h1>
             <div class="header-actions">
                 <span id="userInfo"></span>
                 <button id="logoutBtn" class="btn btn-secondary">登出</button>
@@ -20,8 +20,8 @@
             <!-- Session Sidebar -->
             <aside id="sessionSidebar" class="session-sidebar hidden">
                 <div class="session-sidebar-header">
-                    <h2>会话</h2>
-                    <button id="newSessionBtn" class="btn-icon" title="新建会话">+</button>
+                    <h2>项目列表</h2>
+                    <button id="newSessionBtn" class="btn-icon" title="新建项目">+</button>
                 </div>
                 <div id="sessionsList" class="sessions-list">
                     <!-- Sessions will be loaded here -->
@@ -31,20 +31,31 @@
             <!-- Main Chat Area -->
             <section class="chat-area">
                 <div class="chat-header">
-                    <button id="toggleSidebarBtn" class="btn-icon" title="显示/隐藏会话列表">+</button>
-                    <span id="currentSessionTitle" class="current-session-title">选择一个会话</span>
+                    <div class="chat-header-buttons">
+                        <button id="showSessionsBtn" class="btn-icon" title="显示项目列表">&gt;</button>
+                        <button id="newSessionInlineBtn" class="btn-icon" title="新建项目">+</button>
+                    </div>
+                    <span id="currentSessionTitle" class="current-session-title">选择一个项目</span>
                 </div>
 
                 <div class="messages-section">
+                    <!-- AI 工作状态指示器 -->
+                    <div id="ai-status" class="ai-status hidden">
+                        <div class="status-indicator">
+                            <span class="status-dot"></span>
+                            <span id="status-text">AI 正在处理...</span>
+                        </div>
+                    </div>
+
                     <div id="messagesContainer" class="messages-container">
-                        <p class="empty-state">选择或创建一个会话开始聊天</p>
+                        <p class="empty-state">选择或创建一个项目开始开发</p>
                     </div>
 
                     <form id="messageForm" class="message-form">
                         <div class="textarea-container">
                             <textarea
                                 id="messageInput"
-                                placeholder="输入消息..."
+                                placeholder="描述你的需求或修改建议..."
                                 disabled
                                 rows="3"
                             ></textarea>

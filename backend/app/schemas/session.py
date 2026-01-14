@@ -38,6 +38,8 @@ class MessageResponse(MessageBase):
     """Message response schema."""
     id: int
     role: str
+    reasoning_content: Optional[str] = None  # AI 思考内容
+    tool_calls: Optional[List[dict]] = None   # 工具调用记录
     created_at: datetime
 
     class Config:

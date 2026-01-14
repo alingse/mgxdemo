@@ -6,19 +6,12 @@ from typing import Optional
 class Settings(BaseSettings):
     """Application settings."""
 
-    # AI Service Configuration
-    openai_api_key: Optional[str] = None
-    openai_base_url: str = "https://api.openai.com/v1"
-    openai_model: str = "gpt-4"
+    # AI Service Configuration（仅支持 DeepSeek）
+    deepseek_api_key: Optional[str] = None
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-chat"
 
-    zhipu_api_key: Optional[str] = None
-    zhipu_base_url: str = "https://open.bigmodel.cn/api/paas/v4"
-    zhipu_model: str = "glm-4"
-
-    anthropic_api_key: Optional[str] = None
-    anthropic_model: str = "claude-3-5-sonnet-20241022"
-
-    default_ai_provider: str = "zhipu"
+    default_ai_provider: str = "deepseek"
 
     # Application Configuration
     secret_key: str = "your-secret-key-change-in-production"
@@ -32,6 +25,11 @@ class Settings(BaseSettings):
     sandbox_base_dir: str = "./sandboxes"
     max_sandbox_size_mb: int = 100
     max_file_size_mb: int = 1
+
+    # Agent Loop Configuration
+    enable_agent_loop: bool = True
+    tool_execution_timeout: int = 30  # seconds
+    max_tool_calls_per_message: int = 10
 
     class Config:
         env_file = ".env"

@@ -106,6 +106,12 @@ cp .env.example .env
 - **User**: id, username, email, hashed_password, created_at, updated_at
 - **Session**: id (UUID hex string), user_id, title, created_at, updated_at
 - **Message**: id, session_id (string, FK to Session.id), content, role (user/assistant/system), created_at
+  - 新增字段：`reasoning_content` (DeepSeek 思考内容), `tool_calls` (工具调用记录 JSON)
+- **AgentExecutionStep**: AI 执行进度追踪模型
+  - id, session_id, message_id, user_id, iteration, status
+  - reasoning_content, tool_name, tool_arguments, tool_result, tool_error
+  - progress (0-100), created_at, updated_at
+- **Todo**: id, session_id, task, completed, created_at, completed_at
 
 **注意**: Session.id 使用 UUID hex 格式的字符串（如 `12db3c516aae14608a5013905b8c189f`），而不是自增整数。这提供更好的 URL 美观性和安全性。
 
@@ -116,6 +122,8 @@ cp .env.example .env
 - `/api/sessions` - 创建/列出用户会话
 - `/api/sessions/{id}` - 获取/删除会话（id 为 UUID hex 字符串）
 - `/api/sessions/{id}/messages` - 创建/列出消息
+- `/api/sessions/{id}/messages/{message_id}/execution-steps` - 获取指定消息的执行步骤（实时进度）
+- `/api/sessions/{id}/messages/latest/execution-steps` - 获取最新消息的执行步骤（推荐用于轮询）
 - `/api/sessions/{id}/sandbox/files` - 列出沙箱文件
 - `/api/sessions/{id}/sandbox/files/{filename}` - 读取/写入/删除文件
 - `/api/sessions/{id}/sandbox/preview` - 预览沙箱 HTML（用于 iframe）
