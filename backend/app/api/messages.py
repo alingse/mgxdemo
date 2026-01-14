@@ -237,7 +237,10 @@ async def _prepare_ai_messages(
                 db=db
             )
         elif msg.tool_calls:
+            # DeepSeek API 要求：包含 tool_calls 的消息必须同时包含 reasoning_content
             msg_dict["tool_calls"] = _convert_tool_calls_to_api_format(msg.tool_calls)
+            # 如果数据库中有 reasoning_content，则添加；否则设为空字符串
+            msg_dict["reasoning_content"] = msg.reasoning_content or ""
 
         ai_messages.append(msg_dict)
 
@@ -271,6 +274,23 @@ async def _run_agent_loop(
             progress=min(10 + iteration * 5, 80)
         )
 
+        # 打印调试信息：发送给 API 的消息列表
+        logger.info(f"=== Iteration {iteration}: Sending {len(ai_messages)} messages to DeepSeek API ===")
+        for idx, msg in enumerate(ai_messages):
+            logger.info(
+                f"Message {idx}: role={msg.get('role')}, "
+                f"has_reasoning={'reasoning_content' in msg}, "
+                f"has_tool_calls={'tool_calls' in msg}, "
+                f"content_length={len(msg.get('content', ''))}"
+            )
+            # 如果是 assistant 消息且有 tool_calls，打印详细信息
+            if msg.get('role') == 'assistant' and 'tool_calls' in msg:
+                logger.warning(
+                    f"  Assistant message with tool_calls: "
+                    f"reasoning_content={'reasoning_content' in msg}, "
+                    f"value='{msg.get('reasoning_content', 'MISSING')[:50]}'"
+                )
+
         assistant_response, tool_calls, reasoning_content = await ai_service.chat_with_tools(
             messages=ai_messages,
             tools=tools_schema
@@ -298,10 +318,19 @@ async def _run_agent_loop(
             "role": "assistant",
             "content": assistant_response or ""
         }
-        if reasoning_content:
-            assistant_msg["reasoning_content"] = reasoning_content
+
+        # DeepSeek API 要求：如果有 tool_calls，必须包含 reasoning_content 字段
         if tool_calls:
+            assistant_msg["reasoning_content"] = reasoning_content or ""
             assistant_msg["tool_calls"] = tool_calls
+            # 打印调试信息
+            logger.info(
+                f"Assistant msg with tool_calls: "
+                f"reasoning_content_length={len(assistant_msg['reasoning_content'])}, "
+                f"tool_calls_count={len(tool_calls)}"
+            )
+        elif reasoning_content:
+            assistant_msg["reasoning_content"] = reasoning_content
 
         ai_messages.append(assistant_msg)
 
@@ -577,24 +606,6 @@ async def create_message(
     db.refresh(assistant_message)
 
     return assistant_message
-
-
-@router.get("/{message_id}/execution-steps", response_model=list[dict])
-async def get_execution_steps(
-    session_id: str,
-    message_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-) -> list[dict]:
-    """获取指定消息的所有执行步骤（实时进度）。"""
-    _verify_session_access(session_id, current_user.id, db)
-
-    steps = db.query(AgentExecutionStep).filter(
-        AgentExecutionStep.session_id == session_id,
-        AgentExecutionStep.message_id == message_id
-    ).order_by(AgentExecutionStep.created_at.asc()).all()
-
-    return [step.to_dict() for step in steps]
 
 
 @router.get("/latest/execution-steps", response_model=list[dict])

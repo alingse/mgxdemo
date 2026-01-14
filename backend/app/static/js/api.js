@@ -145,6 +145,15 @@ class ApiClient {
     getStaticUrl(sessionId, filename) {
         return `${API_BASE}/api/sessions/${sessionId}/sandbox/static/${filename}`;
     }
+
+    // Execution Progress APIs
+    async getLatestExecutionSteps(sessionId) {
+        return this.request(`/api/sessions/${sessionId}/messages/latest/execution-steps`);
+    }
+
+    async getExecutionSteps(sessionId, messageId) {
+        return this.request(`/api/sessions/${sessionId}/messages/${messageId}/execution-steps`);
+    }
 }
 
 // Create global API client instance

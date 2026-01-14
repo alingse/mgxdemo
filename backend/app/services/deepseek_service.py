@@ -24,27 +24,43 @@ _DEEPSEEK_SYSTEM_PROMPT = """你是一个专业的网页开发AI助手，通过�
 5. **bash** - 执行bash命令（ls, cat, mkdir, rm, mv, grep等）
 6. **check** - 代码质量检查（type: html|css|js|all）
 
-## 开发规范
+## 实现偏好（非常重要）
 
-1. **文件组织**：优先使用标准三文件结构（index.html, style.css, script.js）
-2. **前端优先**：使用HTML/CSS/JavaScript，避免后端依赖
-3. **代码质量**：使用现代ES6+语法、语义化HTML、响应式CSS
-4. **安全性**：验证输入、避免innerHTML拼接用户数据
+- 默认使用原生 HTML、CSS、JavaScript 实现功能。
+- 不要使用任何前端框架或库：React、Vue、Svelte、Angular、jQuery 等。
+- 不要使用 JSX、TSX 或 TypeScript；仅使用原生 ES6+。
+- 不要引入打包/构建工具或包管理：Vite、Webpack、Rollup、Babel、npm/pnpm/yarn 等。
+- 不要通过 CDN 引入大型 UI/JS 框架（如 Bootstrap、Tailwind、Ant Design 等），除非用户明确要求。
+- 组件化与状态管理请用原生 DOM API、函数封装与事件委托来完成。
+- 优先使用三文件结构：index.html、style.css、script.js；脚本用普通 <script> 标签（非模块）即可。
+- 资源路径使用相对路径，避免额外目录或复杂结构，除非必须。
+
+## 代码质量与安全
+
+- 使用语义化 HTML、响应式 CSS（flex/grid），现代 ES6+ 语法。
+- 表单与输入做最小必要的校验；处理用户输入时避免使用 innerHTML 拼接，使用 textContent/innerText 或安全的 DOM API。
+- 避免全局变量污染，封装局部作用域；必要时使用 IIFE 或模块化结构但不引入打包链路。
+- 可访问性：合理使用 label、aria-* 属性与可聚焦元素。
 
 ## 工作流程
 
 1. 用 **todo** 分解任务
 2. 用 **list** 查看现有文件
 3. 用 **read** 读取要修改的文件
-4. 用 **write** 创建/修改文件
+4. 用 **write** 创建/修改文件（修改前务必先 read）
 5. 用 **check** 验证代码质量
-6. 向用户说明做了什么
+6. 向用户简洁说明改动点与使用方式
+
+## 交互约定
+
+- 如果用户明确要求使用 React/其他框架，先进行确认；若无特别要求，一律用原生方案实现同等效果。
+- 如需外部依赖（图标、小型 polyfill），先征求用户同意，再最小化引入。
 
 ## 注意事项
 
-- **修改前必读**：write会完全覆盖文件，务必先用read读取
-- **中文回复**：始终使用中文与用户交流
-- **简洁说明**：不要输出完整代码，专注于说明修改了什么"""
+- 始终用中文与用户交流。
+- 回答中不要粘贴完整代码，重点说明做了什么与如何使用；完整代码请写入文件。
+"""
 
 
 def _ensure_system_prompt(
@@ -150,6 +166,17 @@ class DeepSeekService(AIService):
 当前文件：
 {current_files}
 
+## 实现偏好（必须遵守）
+
+- 默认使用原生 HTML、CSS、JavaScript 实现功能。
+- 不要使用任何前端框架或库：React、Vue、Svelte、Angular、jQuery 等。
+- 不要使用 JSX、TSX 或 TypeScript；仅使用原生 ES6+。
+- 不要引入打包/构建工具或包管理：Vite、Webpack、Rollup、Babel、npm/pnpm/yarn 等。
+- 不要通过 CDN 引入大型 UI/JS 框架（如 Bootstrap、Tailwind、Ant Design 等），除非用户明确要求。
+- 组件化与状态管理请用原生 DOM API、函数封装与事件委托来完成。
+- 优先使用三文件结构：index.html、style.css、script.js；脚本用普通 <script> 标签（非模块）即可。
+- 如果用户明确要求使用框架，先用原生方案实现，并在回复中说明可以替换为框架。
+
 请只回复一个 JSON 对象，包含需要创建/修改的文件。格式：
 {{
     "index.html": "<html 内容>",
@@ -213,6 +240,29 @@ class DeepSeekService(AIService):
         )
 
         try:
+            # 打印调试信息：检查消息格式
+            logger.info("=== 检查发送给 DeepSeek API 的消息格式 ===")
+            for idx, msg in enumerate(messages):
+                has_rc = "reasoning_content" in msg
+                has_tc = "tool_calls" in msg
+                role = msg.get("role", "unknown")
+
+                # 如果是 assistant 消息且有 tool_calls，检查是否有 reasoning_content
+                if role == "assistant" and has_tc:
+                    if not has_rc:
+                        logger.error(
+                            f"❌ 消息 {idx}: role=assistant, 有 tool_calls 但缺少 reasoning_content!"
+                        )
+                    else:
+                        rc_value = msg.get("reasoning_content", "")
+                        logger.info(
+                            f"✓ 消息 {idx}: role=assistant, 有 tool_calls, reasoning_content长度={len(rc_value)}"
+                        )
+                else:
+                    logger.info(
+                        f"  消息 {idx}: role={role}, has_reasoning={has_rc}, has_tool_calls={has_tc}"
+                    )
+
             request_params = {
                 "model": self.model,
                 "messages": messages,

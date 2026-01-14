@@ -137,6 +137,7 @@ function formatTime(dateString) {
 
 // 侧边栏切换
 function toggleSidebar() {
+    landingSidebar.classList.remove('hidden');
     landingSidebar.classList.toggle('open');
 }
 

@@ -14,6 +14,7 @@ class MessageRole(str, enum.Enum):
     USER = "user"
     ASSISTANT = "assistant"
     SYSTEM = "system"
+    TOOL = "tool"  # 工具响应消息
 
 
 class Message(Base):

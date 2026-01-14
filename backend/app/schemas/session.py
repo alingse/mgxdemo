@@ -1,7 +1,8 @@
 import json
 from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel, field_serializer
+from pydantic import BaseModel, field_validator
 
 
 class SessionBase(BaseModel):
@@ -40,20 +41,23 @@ class MessageResponse(MessageBase):
     id: int
     role: str
     reasoning_content: str | None = None  # AI 思考内容
-    tool_calls: list[dict] | None = None   # 工具调用记录（自动从数据库解析）
+    tool_calls: list[dict] | None = None   # 工具调用记录（自动从数据库 JSON 字符串解析）
     created_at: datetime
 
-    @field_serializer('tool_calls', when_used='json')
-    def parse_tool_calls(self, value: str | None) -> list[dict] | None:
-        """将数据库中的 JSON 字符串解析为列表。"""
+    @field_validator('tool_calls', mode='before')
+    @classmethod
+    def parse_tool_calls(cls, value: Any) -> list[dict] | None:
+        """将数据库中的 JSON 字符串解析为列表（在验证前执行）。"""
         if value is None:
             return None
         if isinstance(value, list):
             return value
-        try:
-            return json.loads(value)
-        except (json.JSONDecodeError, TypeError):
-            return None
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                return None
+        return None
 
     class Config:
         from_attributes = True
