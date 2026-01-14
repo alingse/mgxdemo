@@ -8,7 +8,7 @@ from app.tools.bash_tool import BashTool
 from app.tools.check_tool import CheckTool
 from app.tools.list_tool import ListTool
 from app.tools.read_tool import ReadTool
-from app.tools.todo_tool import TodoTool
+from app.tools.todo_write import TodoWriteTool
 from app.tools.write_tool import WriteTool
 
 
@@ -29,8 +29,8 @@ class AgentSandbox:
             "list": ListTool(self.user_id, self.session_id),
             "read": ReadTool(self.user_id, self.session_id),
             "write": WriteTool(self.user_id, self.session_id),
-            "todo": TodoTool(self.session_id, self.db),
-            "check": CheckTool(self.session_path)
+            "todo_write": TodoWriteTool(self.session_id, self.db),
+            "check": CheckTool(self.session_path),
         }
 
     def get_tools_schema(self) -> list[dict[str, Any]]:

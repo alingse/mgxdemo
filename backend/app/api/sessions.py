@@ -1,3 +1,4 @@
+import json
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.orm import Session
@@ -5,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user
 from app.database import get_db
 from app.models.session import Session as SessionModel
+from app.models.todo import TodoSnapshot
 from app.models.user import User
 from app.schemas.session import SessionCreate, SessionDetail, SessionResponse, SessionUpdate
 from app.services.sandbox_service import get_sandbox_service
@@ -122,6 +124,52 @@ async def delete_session(
 
     db.delete(session)
     db.commit()
+
+
+@router.get("/{session_id}/todos")
+async def get_session_todos(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """获取 session 的 TODO 列表（模仿 Claude TodoWrite 格式）"""
+    # 验证 session 归属
+    session = db.query(SessionModel).filter(
+        SessionModel.id == session_id,
+        SessionModel.user_id == current_user.id
+    ).first()
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found"
+        )
+
+    # 获取 TODO 快照
+    snapshot = db.query(TodoSnapshot).filter(
+        TodoSnapshot.session_id == session_id
+    ).first()
+
+    if not snapshot:
+        return {
+            "todos": [],
+            "total": 0,
+            "completed": 0,
+            "in_progress": 0,
+            "pending": 0
+        }
+
+    # 解析 JSON
+    todos = json.loads(snapshot.todos_json)
+
+    # 计算统计信息
+    return {
+        "todos": todos,
+        "total": len(todos),
+        "completed": sum(1 for t in todos if t.get("status") == "completed"),
+        "in_progress": sum(1 for t in todos if t.get("status") == "in_progress"),
+        "pending": sum(1 for t in todos if t.get("status") == "pending")
+    }
 
 
 @router.websocket("/ws/{session_id}")

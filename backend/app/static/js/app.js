@@ -508,7 +508,7 @@ async function sendMessage(e) {
     `;
     elements.messagesContainer.appendChild(userDiv);
 
-    // 2. 创建空的 AI 消息容器（包含执行步骤区域）
+    // 2. 创建AI消息容器
     const aiDiv = document.createElement('div');
     aiDiv.className = 'message message-assistant streaming';
     aiDiv.innerHTML = `
@@ -516,16 +516,7 @@ async function sendMessage(e) {
             <img src="/static/img/ai-avatar.svg" alt="AI">
         </div>
         <div class="message-content stream-content">
-            <div class="message-execution-steps">
-                <div class="execution-step active">
-                    <div class="step-header">
-                        <span class="step-icon">🤔</span>
-                        <div class="step-title-wrapper">
-                            <span class="step-title">准备思考...</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <div class="message-execution-steps"></div>
             <div class="message-bubble streaming">
                 <span class="typing-cursor">▋</span>
             </div>
@@ -533,71 +524,106 @@ async function sendMessage(e) {
     `;
     elements.messagesContainer.appendChild(aiDiv);
 
-    // 保存引用以便后续更新
-    currentStreamingMessage = aiDiv;
     const streamContentDiv = aiDiv.querySelector('.stream-content');
+    const stepsContainer = aiDiv.querySelector('.message-execution-steps');
+
+    // 3. 步骤映射（用于更新现有步骤）
+    const stepMap = new Map();
 
     try {
-        // 3. 发送消息
-        await api.createMessage(currentSession.id, content);
+        // 4. 发送消息（立即返回）
+        const response = await api.createMessage(currentSession.id, content);
+        console.log('[sendMessage] Message created, starting SSE...');
 
-        // 4. 启动进度追踪
-        const tracker = new ProgressTracker(
-            currentSession.id,
-            (steps) => {
-                // 实时更新当前正在生成消息的执行步骤
-                if (currentStreamingMessage) {
-                    const contentDiv = currentStreamingMessage.querySelector('.stream-content');
-                    _renderExecutionSteps(contentDiv, steps, true); // true = 流式更新模式
+        // 5. 连接SSE流
+        const sseClient = new SSEClient(currentSession.id, {
+            maxRetries: 5,
+
+            // onSync: 处理同步事件（重连时）
+            onSync: (data) => {
+                console.log('[SSE] Sync event, loading history...');
+                if (data.is_running && data.latest_step) {
+                    // 从数据库加载完整历史
+                    api.getExecutionSteps(currentSession.id, data.message_id)
+                        .then(steps => {
+                            // 渲染历史步骤
+                            steps.forEach(step => {
+                                const key = step.tool_call_id
+                                    ? `${step.iteration}-${step.tool_call_id}`
+                                    : `${step.iteration}-thinking`;
+
+                                if (!stepMap.has(key)) {
+                                    const stepDiv = _createExecutionStepElement(step);
+                                    stepsContainer.appendChild(stepDiv);
+                                    stepMap.set(key, stepDiv);
+                                }
+                            });
+                        });
                 }
             },
-            (success, data) => {
-                if (!success) {
-                    console.warn('Progress tracking failed:', data);
-                    if (currentStreamingMessage) {
-                        // 显示错误状态
-                        const stepsContainer = currentStreamingMessage.querySelector('.message-execution-steps');
-                        if (stepsContainer) {
-                            const errorDiv = document.createElement('div');
-                            errorDiv.className = 'execution-step';
-                            errorDiv.innerHTML = `
-                                <div class="step-error">
-                                    <strong>❌ 处理失败:</strong> ${data?.message || '未知错误'}
-                                </div>
-                            `;
-                            stepsContainer.appendChild(errorDiv);
-                        }
+
+            // onEvent: 处理推送事件
+            onEvent: ({ event, data }) => {
+                console.log('[SSE] Event:', event, data);
+
+                if (data.type === 'step') {
+                    const step = data.data;
+
+                    // 生成唯一键
+                    const key = step.tool_call_id
+                        ? `${step.iteration}-${step.tool_call_id}`
+                        : `${step.iteration}-thinking`;
+
+                    // 检查是否已存在
+                    if (stepMap.has(key)) {
+                        // 更新现有步骤
+                        const existingStepDiv = stepMap.get(key);
+                        _updateExecutionStepElement(existingStepDiv, step);
+                    } else {
+                        // 创建新步骤
+                        const stepDiv = _createExecutionStepElement(step);
+                        stepsContainer.appendChild(stepDiv);
+                        stepMap.set(key, stepDiv);
+
+                        // 自动滚动
+                        stepsContainer.scrollTop = stepsContainer.scrollHeight;
                     }
                 }
+            },
+
+            // onError: 处理错误
+            onError: (error) => {
+                console.error('[SSE] Error:', error);
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'execution-step error';
+                const stepError = document.createElement('div');
+                stepError.className = 'step-error';
+                const strong = document.createElement('strong');
+                strong.textContent = '❌ 错误:';
+                const text = document.createTextNode(' ' + error);
+                stepError.appendChild(strong);
+                stepError.appendChild(text);
+                errorDiv.appendChild(stepError);
+                stepsContainer.appendChild(errorDiv);
+            },
+
+            // onComplete: 处理完成
+            onComplete: async () => {
+                console.log('[SSE] Stream completed');
+                await loadMessages();
+                setTimeout(() => ui.refreshPreview(), 500);
+                elements.messageInput.disabled = false;
+                elements.messageInput.focus();
             }
-        );
+        });
 
-        tracker.start();
+        sseClient.connect();
 
-        // 等待完成
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Timeout')), 6 * 60 * 1000)
-        );
-
-        try {
-            await Promise.race([tracker.waitForCompletion(), timeoutPromise]);
-        } catch (timeoutError) {
-            console.warn('Message processing timeout');
-        } finally {
-            tracker.stop();
-        }
-
-        // 5. 加载最终消息列表
-        await loadMessages();
-        setTimeout(() => ui.refreshPreview(), 500);
     } catch (error) {
         console.error('发送消息失败:', error);
         ui.showSystemMessage(`发送消息失败: ${error.message}`);
         aiDiv.remove();
-    } finally {
         elements.messageInput.disabled = false;
-        elements.messageInput.focus();
-        currentStreamingMessage = null; // 清空引用
     }
 }
 
@@ -677,6 +703,124 @@ function setupEventListeners() {
             }
         }
     });
+}
+
+/**
+ * 更新现有执行步骤元素（用于SSE推送更新）
+ */
+function _updateExecutionStepElement(stepDiv, step) {
+    // 更新active状态
+    const isActive = ['thinking', 'tool_calling', 'tool_executing'].includes(step.status);
+    stepDiv.classList.toggle('active', isActive);
+
+    // 更新图标
+    const iconEl = stepDiv.querySelector('.step-icon');
+    if (iconEl) {
+        iconEl.textContent = _getStatusIcon(step.status);
+    }
+
+    // 更新标题
+    const titleEl = stepDiv.querySelector('.step-title');
+    if (titleEl) {
+        const displayName = _getStepDisplayName(step);
+        titleEl.textContent = displayName;
+    }
+
+    // 更新思考内容
+    if (step.reasoning_content) {
+        let thinkingEl = stepDiv.querySelector('.step-thinking-content pre');
+        if (!thinkingEl) {
+            // 创建思考内容容器
+            const existingContent = stepDiv.querySelector('.step-thinking-content');
+            if (existingContent) {
+                thinkingEl = existingContent.querySelector('pre');
+            }
+
+            if (!thinkingEl) {
+                // 需要创建新的思考内容区域
+                const detailsDiv = stepDiv.querySelector('details');
+                if (detailsDiv) {
+                    const summary = detailsDiv.querySelector('summary');
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'step-thinking-content';
+                    const pre = document.createElement('pre');
+                    pre.textContent = step.reasoning_content;
+                    contentDiv.appendChild(pre);
+                    summary.after(contentDiv);
+                } else {
+                    // 纯思考步骤，没有工具调用
+                    const stepHeader = stepDiv.querySelector('.step-header');
+                    if (stepHeader) {
+                        const contentDiv = document.createElement('div');
+                        contentDiv.className = 'step-thinking-content';
+                        const pre = document.createElement('pre');
+                        pre.textContent = step.reasoning_content;
+                        contentDiv.appendChild(pre);
+                        stepHeader.after(contentDiv);
+                    }
+                }
+            }
+        } else {
+            // 更新内容（支持分片推送）
+            thinkingEl.textContent = step.reasoning_content;
+        }
+    }
+
+    // 更新工具结果
+    if (step.tool_result) {
+        let resultDetails = stepDiv.querySelector('details[data-result]');
+        if (resultDetails) {
+            const pre = resultDetails.querySelector('pre');
+            if (pre) {
+                pre.textContent = step.tool_result.substring(0, 500) +
+                    (step.tool_result.length > 500 ? '...' : '');
+            }
+        }
+    }
+
+    // 更新或创建工具错误
+    if (step.tool_error) {
+        let errorEl = stepDiv.querySelector('.step-error');
+        if (!errorEl) {
+            errorEl = document.createElement('div');
+            errorEl.className = 'step-error';
+            const strong = document.createElement('strong');
+            strong.textContent = '❌ 错误:';
+            const text = document.createTextNode(' ' + step.tool_error);
+            errorEl.appendChild(strong);
+            errorEl.appendChild(text);
+            stepDiv.appendChild(errorEl);
+        } else {
+            errorEl.textContent = '';
+            const strong = document.createElement('strong');
+            strong.textContent = '❌ 错误:';
+            const text = document.createTextNode(' ' + step.tool_error);
+            errorEl.appendChild(strong);
+            errorEl.appendChild(text);
+        }
+    }
+}
+
+/**
+ * 获取步骤显示名称
+ */
+function _getStepDisplayName(step) {
+    if (step.tool_name) {
+        const baseName = step.tool_name;
+        switch (step.status) {
+            case 'tool_calling':
+                return `准备调用 ${baseName}...`;
+            case 'tool_executing':
+                return `正在执行 ${baseName}...`;
+            case 'tool_completed':
+                return `${baseName} 完成`;
+            case 'failed':
+                return `${baseName} 失败`;
+            default:
+                return baseName;
+        }
+    }
+    return _getStatusText(step.status);
 }
 
 // 启动应用

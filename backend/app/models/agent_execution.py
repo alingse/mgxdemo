@@ -70,6 +70,7 @@ class AgentExecutionStep(Base):
             "reasoning_content": self.reasoning_content,
             "tool_name": self.tool_name,
             "tool_arguments": json.loads(self.tool_arguments) if self.tool_arguments else None,
+            "tool_call_id": self.tool_call_id,
             "tool_result": self.tool_result,
             "tool_error": self.tool_error,
             "progress": self.progress,
