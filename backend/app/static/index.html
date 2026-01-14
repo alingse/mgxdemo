@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Sandbox - 用 AI 创建你的网页应用</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="homepage-body">
+    <div class="hero-container">
+        <h1>AI Agent Sandbox</h1>
+        <p class="subtitle">用自然语言描述，让 AI 为你创建网页应用</p>
+
+        <!-- Main form -->
+        <form id="mainForm" class="main-form">
+            <div class="input-container">
+                <textarea
+                    id="mainInput"
+                    class="main-input"
+                    placeholder="告诉 AI 你想要什么，比如：做一个 Todo List..."
+                    rows="3"
+                ></textarea>
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                    开始创建
+                </button>
+            </div>
+        </form>
+
+        <!-- Example tags -->
+        <div class="examples">
+            <div class="example-tag" data-text="帮我做一个 Todo List 应用">📝 Todo List</div>
+            <div class="example-tag" data-text="创建一个简单的计算器">🧮 计算器</div>
+            <div class="example-tag" data-text="做一个倒计时器">⏰ 倒计时</div>
+            <div class="example-tag" data-text="创建一个天气预报展示页">🌤️ 天气预报</div>
+        </div>
+
+        <!-- Features -->
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">💬</div>
+                <div class="feature-title">对话式创建</div>
+                <div class="feature-desc">用自然语言描述需求</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <div class="feature-title">实时预览</div>
+                <div class="feature-desc">边聊边看效果</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🎨</div>
+                <div class="feature-title">随心修改</div>
+                <div class="feature-desc">不满意就继续调整</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login/Register Modal -->
+    <div id="authModal" class="auth-modal hidden">
+        <div class="modal-overlay" id="modalOverlay"></div>
+        <div class="modal-content">
+            <button class="modal-close" id="modalClose">&times;</button>
+
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">登录</button>
+                <button class="auth-tab" data-tab="register">注册</button>
+            </div>
+
+            <!-- Login Form -->
+            <div id="loginTab" class="tab-content active">
+                <form id="modalLoginForm">
+                    <div class="form-group">
+                        <label for="loginUsername">用户名</label>
+                        <input type="text" id="loginUsername" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">密码</label>
+                        <input type="password" id="loginPassword" name="password" required>
+                    </div>
+                    <div id="loginError" class="error"></div>
+                    <button type="submit" class="btn btn-primary">登录</button>
+                </form>
+            </div>
+
+            <!-- Register Form -->
+            <div id="registerTab" class="tab-content">
+                <form id="modalRegisterForm">
+                    <div class="form-group">
+                        <label for="registerUsername">用户名</label>
+                        <input type="text" id="registerUsername" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerEmail">邮箱</label>
+                        <input type="email" id="registerEmail" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerPassword">密码</label>
+                        <input type="password" id="registerPassword" name="password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerConfirmPassword">确认密码</label>
+                        <input type="password" id="registerConfirmPassword" name="confirmPassword" required>
+                    </div>
+                    <div id="registerError" class="error"></div>
+                    <button type="submit" class="btn btn-primary">注册</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/landing.js"></script>
+</body>
+</html>

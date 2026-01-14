@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>预览 - AI Agent Sandbox</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        #previewFrame {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="loadingMessage" class="loading">加载中...</div>
+    <iframe id="previewFrame" style="display: none;"></iframe>
+
+    <script>
+        // 从 URL 中获取 session_id
+        const pathParts = window.location.pathname.split('/');
+        const sessionId = pathParts[pathParts.length - 1];
+
+        const previewFrame = document.getElementById('previewFrame');
+        const loadingMessage = document.getElementById('loadingMessage');
+
+        if (sessionId && sessionId !== 'app') {
+            // 构建预览 URL
+            const previewUrl = `${window.location.origin}/api/sessions/${sessionId}/sandbox/preview`;
+
+            // 加载预览
+            previewFrame.src = previewUrl;
+
+            previewFrame.onload = function() {
+                loadingMessage.style.display = 'none';
+                previewFrame.style.display = 'block';
+            };
+
+            previewFrame.onerror = function() {
+                loadingMessage.textContent = '加载失败，请检查会话是否存在';
+            };
+        } else {
+            loadingMessage.textContent = '无效的会话 ID';
+        }
+
+        // 监听 postMessage，支持从父页面刷新
+        window.addEventListener('message', function(event) {
+            if (event.data.action === 'refresh') {
+                previewFrame.src = previewFrame.src;
+            }
+        });
+    </script>
+</body>
+</html>

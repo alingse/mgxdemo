@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Sandbox</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <h1>AI Agent Sandbox</h1>
+            <div class="header-actions">
+                <span id="userInfo"></span>
+                <button id="logoutBtn" class="btn btn-secondary">登出</button>
+            </div>
+        </header>
+
+        <main class="main-container">
+            <!-- Session Sidebar -->
+            <aside id="sessionSidebar" class="session-sidebar hidden">
+                <div class="session-sidebar-header">
+                    <h2>会话</h2>
+                    <button id="newSessionBtn" class="btn-icon" title="新建会话">+</button>
+                </div>
+                <div id="sessionsList" class="sessions-list">
+                    <!-- Sessions will be loaded here -->
+                </div>
+            </aside>
+
+            <!-- Main Chat Area -->
+            <section class="chat-area">
+                <div class="chat-header">
+                    <button id="toggleSidebarBtn" class="btn-icon" title="显示/隐藏会话列表">+</button>
+                    <span id="currentSessionTitle" class="current-session-title">选择一个会话</span>
+                </div>
+
+                <div class="messages-section">
+                    <div id="messagesContainer" class="messages-container">
+                        <p class="empty-state">选择或创建一个会话开始聊天</p>
+                    </div>
+
+                    <form id="messageForm" class="message-form">
+                        <div class="textarea-container">
+                            <textarea
+                                id="messageInput"
+                                placeholder="输入消息..."
+                                disabled
+                                rows="3"
+                            ></textarea>
+                            <button type="submit" class="send-icon-btn" aria-label="发送消息">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                </svg>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Right: Preview Area (70%) -->
+            <section class="preview-area">
+                <div class="preview-header">
+                    <h2>预览</h2>
+                    <button id="refreshPreviewBtn" class="btn btn-secondary btn-small">刷新</button>
+                </div>
+                <div class="preview-container">
+                    <iframe id="previewFrame" class="preview-frame"></iframe>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
