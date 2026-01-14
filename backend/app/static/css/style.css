@@ -1681,150 +1681,26 @@ body {
     border: none;
 }
 
-/* AI 状态指示器 */
-.ai-status {
-    padding: 12px 16px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-}
-
-.ai-status.hidden {
-    display: none;
-}
-
-.status-indicator {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 14px;
-    color: var(--text-secondary);
-    font-weight: 500;
-}
-
-.status-dot {
-    width: 8px;
-    height: 8px;
-    background: var(--info);
-    border-radius: 50%;
-    animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-    0%, 100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-    50% {
-        opacity: 0.5;
-        transform: scale(0.9);
-    }
-}
-
-.status-dot.thinking {
-    background: #8b5cf6; /* 紫色：思考中 */
-}
-
-.status-dot.tool-calling {
-    background: #f59e0b; /* 橙色：工具调用中 */
-}
-
-.status-dot.error {
-    background: var(--error); /* 红色：错误 */
-}
-
 /* ========================================
-   PROGRESS TRACKING STYLES
+   MESSAGE EXECUTION STEPS
    ======================================== */
 
-/* Progress Container */
-.progress-container {
-    margin-top: 12px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.progress-bar-bg {
-    flex: 1;
-    height: 6px;
-    background: var(--border);
-    border-radius: 3px;
-    overflow: hidden;
-}
-
-.progress-bar-fill {
-    height: 100%;
-    width: 0%;
-    background: var(--info);
-    border-radius: 3px;
-    transition: width 0.3s ease, background-color 0.3s ease;
-}
-
-.progress-bar-fill.thinking {
-    background: #8b5cf6; /* 紫色：思考中 */
-}
-
-.progress-bar-fill.tool-executing {
-    background: #f59e0b; /* 橙色：工具执行中 */
-}
-
-.progress-bar-fill.completed {
-    background: #059669; /* 绿色：完成 */
-}
-
-.progress-bar-fill.failed {
-    background: var(--error); /* 红色：失败 */
-}
-
-.progress-text {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    min-width: 40px;
-    text-align: right;
-}
-
-/* Toggle Steps Button */
-.toggle-steps-btn {
-    margin-top: 12px;
+/* 消息内执行步骤容器 */
+.message-execution-steps {
+    margin-bottom: 12px;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    padding: 8px 12px;
+    padding: 10px;
     font-size: 13px;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: 500;
-}
-
-.toggle-steps-btn:hover {
-    background: var(--input-bg-hover);
-    border-color: var(--border-dark);
-    color: var(--text);
-}
-
-.toggle-steps-btn .arrow {
-    font-size: 10px;
-    transition: transform 0.2s ease;
-}
-
-/* Execution Steps Container */
-.execution-steps {
-    margin-top: 12px;
-    max-height: 300px;
+    max-height: 400px;
     overflow-y: auto;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 8px;
 }
 
-.execution-steps.hidden {
-    display: none;
+/* 正在生成的消息样式 */
+.message.streaming .message-execution-steps {
+    border-color: var(--info);
+    background: #f0f9ff;
 }
 
 /* Individual Execution Step */

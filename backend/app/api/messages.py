@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sessions/{session_id}/messages", tags=["messages"])
 
 # 常量
-_MAX_AGENT_ITERATIONS = 10
+_MAX_AGENT_ITERATIONS = 100
 _CODE_KEYWORDS = [
     "创建", "做一个", "做个", "实现", "修改", "添加", "改成", "改为",
     "写一个", "写个", "生成", "开发", "制作", "设计", "构建"
@@ -207,11 +207,6 @@ async def _build_contextual_user_prompt(
     context_parts.append(user_message)
 
     return "\n".join(context_parts)
-
-
-def _should_modify_files(content: str) -> bool:
-    """判断用户消息是否包含文件修改关键词。"""
-    return any(keyword in content for keyword in _CODE_KEYWORDS)
 
 
 async def _prepare_ai_messages(
@@ -502,14 +497,20 @@ async def _handle_legacy_mode(
     async for chunk in ai_service.chat(ai_messages):
         assistant_response += chunk
 
+    # 检查是否包含修改文件的意图标记
+    should_modify = "[MODIFY]" in assistant_response
+
+    # 移除标记，只保留用户可见的内容
+    clean_response = assistant_response.replace("[MODIFY]", "").strip()
+
     assistant_message = Message(
         session_id=session_id,
         role=MessageRole.ASSISTANT,
-        content=assistant_response
+        content=clean_response
     )
     db.add(assistant_message)
 
-    if _should_modify_files(message_create.content):
+    if should_modify:
         await _modify_files_in_sandbox(
             ai_service,
             message_create.content,

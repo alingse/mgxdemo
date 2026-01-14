@@ -195,3 +195,62 @@ def get_sandbox_path(user_id: int, session_id: str) -> Path:
     """Get the sandbox directory path for a user session."""
     service = get_sandbox_service()
     return service._get_sandbox_path(user_id, session_id)
+
+
+# ============================================================================
+# Module-level convenience functions for tools to use directly
+# These functions create a service instance on each call and delegate to it.
+# ============================================================================
+
+async def list_files(user_id: int, session_id: str) -> list[str]:
+    """List all files in the sandbox."""
+    service = get_sandbox_service()
+    return await service.list_files(user_id, session_id)
+
+
+async def read_file(user_id: int, session_id: str, filename: str) -> str:
+    """Read a file from the sandbox."""
+    service = get_sandbox_service()
+    return await service.read_file(user_id, session_id, filename)
+
+
+async def write_file(user_id: int, session_id: str, filename: str, content: str) -> None:
+    """Write a file to the sandbox."""
+    service = get_sandbox_service()
+    await service.write_file(user_id, session_id, filename, content)
+
+
+async def delete_file(user_id: int, session_id: str, filename: str) -> None:
+    """Delete a file from the sandbox."""
+    service = get_sandbox_service()
+    await service.delete_file(user_id, session_id, filename)
+
+
+async def get_all_files(user_id: int, session_id: str) -> dict[str, str]:
+    """Get all files and their contents."""
+    service = get_sandbox_service()
+    return await service.get_all_files(user_id, session_id)
+
+
+async def update_files(user_id: int, session_id: str, files: dict[str, str]) -> None:
+    """Update multiple files in the sandbox."""
+    service = get_sandbox_service()
+    await service.update_files(user_id, session_id, files)
+
+
+async def initialize_sandbox(user_id: int, session_id: str) -> None:
+    """Initialize a new sandbox with default files."""
+    service = get_sandbox_service()
+    await service.initialize_sandbox(user_id, session_id)
+
+
+async def delete_sandbox(user_id: int, session_id: str) -> None:
+    """Delete the entire sandbox directory."""
+    service = get_sandbox_service()
+    await service.delete_sandbox(user_id, session_id)
+
+
+def get_preview_url(user_id: int, session_id: str) -> str:
+    """Get the URL for previewing the sandbox."""
+    service = get_sandbox_service()
+    return service.get_preview_url(user_id, session_id)

@@ -3,6 +3,7 @@ let currentSession = null;
 let sessions = [];
 let currentUser = null;
 let sidebarVisible = false;
+let currentStreamingMessage = null; // 当前正在生成的消息容器
 
 // DOM 元素引用
 const elements = {
@@ -65,247 +66,162 @@ const utils = {
     }
 };
 
-// UI 操作
-const ui = {
-    showAIStatus(status, text) {
-        const statusDiv = document.getElementById('ai-status');
-        const statusText = document.getElementById('status-text');
-        const statusDot = statusDiv.querySelector('.status-dot');
+// ============================================
+// 执行步骤渲染函数
+// ============================================
 
-        statusDiv.classList.remove('hidden');
-        statusText.textContent = text;
-        statusDot.classList.remove('thinking', 'tool-calling', 'error');
+/**
+ * 创建单个执行步骤的 DOM 元素
+ */
+function _createExecutionStepElement(step) {
+    const stepDiv = document.createElement('div');
+    stepDiv.className = `execution-step ${step.status === 'thinking' || step.status === 'tool_calling' || step.status === 'tool_executing' ? 'active' : ''}`;
 
-        if (status === 'thinking') {
-            statusDot.classList.add('thinking');
-        } else if (status === 'tool-calling') {
-            statusDot.classList.add('tool-calling');
-        } else if (status === 'error') {
-            statusDot.classList.add('error');
-        }
-    },
+    const statusIcon = _getStatusIcon(step.status);
+    let title = step.tool_name || _getStatusText(step.status);
+    const time = utils.formatTime(step.created_at);
 
-    hideAIStatus() {
-        document.getElementById('ai-status').classList.add('hidden');
-    },
+    let detailsHtml = '';
 
-    /**
-     * 更新进度显示
-     * @param {Array} steps - 执行步骤数组
-     */
-    updateProgress(steps) {
-        if (!steps || steps.length === 0) return;
-
-        const latest = steps[steps.length - 1];
-
-        // 更新进度条
-        const progressBar = document.getElementById('progressBar');
-        const progressText = document.getElementById('progressText');
-        if (progressBar && progressText) {
-            const progress = Math.round(latest.progress || 0);
-            progressBar.style.width = `${progress}%`;
-            progressText.textContent = `${progress}%`;
-
-            // 更新进度条颜色
-            progressBar.classList.remove('thinking', 'tool-calling', 'tool-executing', 'completed', 'failed');
-            if (latest.status === 'thinking') {
-                progressBar.classList.add('thinking');
-            } else if (latest.status === 'tool_calling' || latest.status === 'tool_executing') {
-                progressBar.classList.add('tool-executing');
-            } else if (latest.status === 'completed') {
-                progressBar.classList.add('completed');
-            } else if (latest.status === 'failed') {
-                progressBar.classList.add('failed');
-            }
-        }
-
-        // 更新状态文本
-        const statusTextElement = document.getElementById('status-text');
-        if (statusTextElement) {
-            if (latest.status === 'thinking') {
-                statusTextElement.textContent = 'AI 正在思考...';
-            } else if (latest.status === 'tool_calling') {
-                statusTextElement.textContent = `准备调用工具: ${latest.tool_name || '未知'}`;
-            } else if (latest.status === 'tool_executing') {
-                statusTextElement.textContent = `正在执行: ${latest.tool_name || '未知'}`;
-            } else if (latest.status === 'tool_completed') {
-                statusTextElement.textContent = `工具执行完成`;
-            } else if (latest.status === 'completed') {
-                statusTextElement.textContent = '执行完成';
-            } else if (latest.status === 'failed') {
-                statusTextElement.textContent = '执行失败';
-            }
-        }
-
-        // 更新状态点
-        const statusDot = document.querySelector('.status-dot');
-        if (statusDot) {
-            statusDot.classList.remove('thinking', 'tool-calling', 'error');
-            if (latest.status === 'thinking') {
-                statusDot.classList.add('thinking');
-            } else if (latest.status === 'tool_calling' || latest.status === 'tool_executing') {
-                statusDot.classList.add('tool-calling');
-            } else if (latest.status === 'failed') {
-                statusDot.classList.add('error');
-            }
-        }
-
-        // 更新执行步骤列表
-        this.updateExecutionSteps(steps);
-    },
-
-    /**
-     * 更新执行步骤列表
-     * @param {Array} steps - 执行步骤数组
-     */
-    updateExecutionSteps(steps) {
-        const stepsContainer = document.getElementById('executionSteps');
-        if (!stepsContainer) return;
-
-        // 清空现有内容
-        stepsContainer.innerHTML = '';
-
-        // 渲染每个步骤
-        steps.forEach((step, index) => {
-            const stepDiv = document.createElement('div');
-            stepDiv.className = `execution-step ${index === steps.length - 1 ? 'active' : ''}`;
-
-            // 状态图标
-            const statusIcon = this.getStatusIcon(step.status);
-
-            // 工具名称或状态描述
-            let title = step.tool_name || this.getStatusText(step.status);
-
-            // 对于纯思考步骤，显示思考内容预览作为副标题
-            let subtitle = '';
-            if (step.status === 'thinking' && step.reasoning_content && !step.tool_name) {
-                const previewText = step.reasoning_content.substring(0, 100);
-                subtitle = `<div class="step-subtitle">${this.escapeHtml(previewText)}${step.reasoning_content.length > 100 ? '...' : ''}</div>`;
-            }
-
-            // 时间戳
-            const time = utils.formatTime(step.created_at);
-
-            let detailsHtml = '';
-
-            // 思考内容（对于纯思考步骤，思考内容已经在副标题中显示，这里可以省略或显示完整内容）
-            if (step.reasoning_content && (step.tool_name || step.tool_arguments || step.tool_result)) {
-                // 只有在有工具调用时，才将思考内容放在 details 中
-                const fullContent = this.escapeHtml(step.reasoning_content);
-                detailsHtml += `
-                    <details class="step-details" ${step.status === 'thinking' ? 'open' : ''}>
-                        <summary>💭 思考过程</summary>
-                        <pre>${fullContent}</pre>
-                    </details>
-                `;
-            } else if (step.reasoning_content && !step.tool_name) {
-                // 纯思考步骤：显示完整的思考内容（不需要折叠）
-                detailsHtml += `
-                    <div class="step-thinking-content">
-                        <pre>${this.escapeHtml(step.reasoning_content)}</pre>
-                    </div>
-                `;
-            }
-
-            // 工具参数
-            if (step.tool_arguments) {
-                const argsStr = JSON.stringify(step.tool_arguments, null, 2);
-                const previewArgs = argsStr.substring(0, 200);
-                detailsHtml += `
-                    <details class="step-details">
-                        <summary>🔧 工具参数</summary>
-                        <pre>${argsStr.length > 200 ? previewArgs + '...' : this.escapeHtml(argsStr)}</pre>
-                    </details>
-                `;
-            }
-
-            // 工具结果
-            if (step.tool_result) {
-                const previewResult = this.escapeHtml(step.tool_result.substring(0, 200));
-                detailsHtml += `
-                    <details class="step-details">
-                        <summary>✓ 执行结果</summary>
-                        <pre>${step.tool_result.length > 200 ? previewResult + '...' : previewResult}</pre>
-                    </details>
-                `;
-            }
-
-            // 工具错误
-            if (step.tool_error) {
-                detailsHtml += `
-                    <div class="step-error">
-                        <strong>❌ 错误:</strong> ${this.escapeHtml(step.tool_error)}
-                    </div>
-                `;
-            }
-
-            stepDiv.innerHTML = `
-                <div class="step-header">
-                    <span class="step-icon">${statusIcon}</span>
-                    <div class="step-title-wrapper">
-                        <span class="step-title">${this.escapeHtml(title)}</span>
-                        ${subtitle}
-                    </div>
-                    <span class="step-time">${time}</span>
-                </div>
-                ${detailsHtml}
+    // 思考内容
+    if (step.reasoning_content) {
+        if (step.tool_name || step.tool_arguments || step.tool_result) {
+            // 有工具调用时，思考内容放在 details 中
+            detailsHtml += `
+                <details class="step-details" ${step.status === 'thinking' ? 'open' : ''}>
+                    <summary>💭 思考过程</summary>
+                    <pre>${utils.escapeHtml(step.reasoning_content)}</pre>
+                </details>
             `;
+        } else {
+            // 纯思考步骤：完整显示
+            detailsHtml += `
+                <div class="step-thinking-content">
+                    <pre>${utils.escapeHtml(step.reasoning_content)}</pre>
+                </div>
+            `;
+        }
+    }
 
+    // 工具参数
+    if (step.tool_arguments) {
+        const args = typeof step.tool_arguments === 'string'
+            ? JSON.parse(step.tool_arguments)
+            : step.tool_arguments;
+        detailsHtml += `
+            <details class="step-details">
+                <summary>🔧 工具参数</summary>
+                <pre>${utils.escapeHtml(JSON.stringify(args, null, 2))}</pre>
+            </details>
+        `;
+    }
+
+    // 工具结果
+    if (step.tool_result) {
+        detailsHtml += `
+            <details class="step-details">
+                <summary>✓ 执行结果</summary>
+                <pre>${utils.escapeHtml(step.tool_result.substring(0, 500))}${step.tool_result.length > 500 ? '...' : ''}</pre>
+            </details>
+        `;
+    }
+
+    // 工具错误
+    if (step.tool_error) {
+        detailsHtml += `
+            <div class="step-error">
+                <strong>❌ 错误:</strong> ${utils.escapeHtml(step.tool_error)}
+            </div>
+        `;
+    }
+
+    stepDiv.innerHTML = `
+        <div class="step-header">
+            <span class="step-icon">${statusIcon}</span>
+            <div class="step-title-wrapper">
+                <span class="step-title">${utils.escapeHtml(title)}</span>
+            </div>
+            <span class="step-time">${time}</span>
+        </div>
+        ${detailsHtml}
+    `;
+
+    return stepDiv;
+}
+
+/**
+ * 渲染消息的执行步骤
+ * @param {HTMLElement} container - 消息内容容器
+ * @param {Array} steps - 执行步骤数组
+ * @param {boolean} isStreaming - 是否为流式更新（追加模式）
+ */
+function _renderExecutionSteps(container, steps, isStreaming = false) {
+    if (!steps || steps.length === 0) return;
+
+    let stepsContainer = container.querySelector('.message-execution-steps');
+
+    if (!stepsContainer) {
+        stepsContainer = document.createElement('div');
+        stepsContainer.className = 'message-execution-steps';
+        container.insertBefore(stepsContainer, container.firstChild);
+    }
+
+    if (isStreaming) {
+        // 流式更新：只添加新步骤
+        const existingCount = stepsContainer.querySelectorAll('.execution-step').length;
+        const newSteps = steps.slice(existingCount);
+
+        newSteps.forEach(step => {
+            const stepDiv = _createExecutionStepElement(step);
             stepsContainer.appendChild(stepDiv);
         });
 
         // 自动滚动到底部
         stepsContainer.scrollTop = stepsContainer.scrollHeight;
-    },
+    } else {
+        // 完全重新渲染
+        stepsContainer.innerHTML = '';
+        steps.forEach(step => {
+            const stepDiv = _createExecutionStepElement(step);
+            stepsContainer.appendChild(stepDiv);
+        });
+    }
+}
 
-    /**
-     * 获取状态图标
-     */
-    getStatusIcon(status) {
-        const icons = {
-            'thinking': '🤔',
-            'tool_calling': '🔧',
-            'tool_executing': '⚙️',
-            'tool_completed': '✅',
-            'finalizing': '📝',
-            'completed': '✨',
-            'failed': '❌'
-        };
-        return icons[status] || '•';
-    },
+/**
+ * 获取状态图标
+ */
+function _getStatusIcon(status) {
+    const icons = {
+        'thinking': '🤔',
+        'tool_calling': '🔧',
+        'tool_executing': '⚙️',
+        'tool_completed': '✅',
+        'finalizing': '📝',
+        'completed': '✨',
+        'failed': '❌'
+    };
+    return icons[status] || '•';
+}
 
-    /**
-     * 获取状态文本
-     */
-    getStatusText(status) {
-        const texts = {
-            'thinking': '思考中',
-            'tool_calling': '工具调用',
-            'tool_executing': '执行中',
-            'tool_completed': '已完成',
-            'finalizing': '生成最终答案',
-            'completed': '完成',
-            'failed': '失败'
-        };
-        return texts[status] || status;
-    },
+/**
+ * 获取状态文本
+ */
+function _getStatusText(status) {
+    const texts = {
+        'thinking': '思考中',
+        'tool_calling': '工具调用',
+        'tool_executing': '执行中',
+        'tool_completed': '已完成',
+        'finalizing': '生成最终答案',
+        'completed': '完成',
+        'failed': '失败'
+    };
+    return texts[status] || status;
+}
 
-    /**
-     * 切换执行步骤列表显示
-     */
-    toggleExecutionSteps() {
-        const stepsContainer = document.getElementById('executionSteps');
-        const toggleBtn = document.getElementById('toggleStepsBtn');
-        const arrow = toggleBtn?.querySelector('.arrow');
-
-        if (stepsContainer) {
-            stepsContainer.classList.toggle('hidden');
-            if (arrow) {
-                arrow.textContent = stepsContainer.classList.contains('hidden') ? '▼' : '▲';
-            }
-        }
-    },
-
+// UI 操作
+const ui = {
     /**
      * HTML 转义
      */
@@ -592,14 +508,24 @@ async function sendMessage(e) {
     `;
     elements.messagesContainer.appendChild(userDiv);
 
-    // 2. 创建空的 AI 消息容器（用于流式显示）
+    // 2. 创建空的 AI 消息容器（包含执行步骤区域）
     const aiDiv = document.createElement('div');
-    aiDiv.className = 'message message-assistant';
+    aiDiv.className = 'message message-assistant streaming';
     aiDiv.innerHTML = `
         <div class="message-avatar">
             <img src="/static/img/ai-avatar.svg" alt="AI">
         </div>
         <div class="message-content stream-content">
+            <div class="message-execution-steps">
+                <div class="execution-step active">
+                    <div class="step-header">
+                        <span class="step-icon">🤔</span>
+                        <div class="step-title-wrapper">
+                            <span class="step-title">准备思考...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="message-bubble streaming">
                 <span class="typing-cursor">▋</span>
             </div>
@@ -607,50 +533,48 @@ async function sendMessage(e) {
     `;
     elements.messagesContainer.appendChild(aiDiv);
 
+    // 保存引用以便后续更新
+    currentStreamingMessage = aiDiv;
     const streamContentDiv = aiDiv.querySelector('.stream-content');
-    const bubbleElement = aiDiv.querySelector('.message-bubble');
-
-    ui.showAIStatus('thinking', 'AI 正在思考...');
-
-    // 重置进度条
-    const progressBar = document.getElementById('progressBar');
-    const progressText = document.getElementById('progressText');
-    if (progressBar) progressBar.style.width = '0%';
-    if (progressText) progressText.textContent = '0%';
 
     try {
-        // 3. 发送消息（使用现有 API）
+        // 3. 发送消息
         await api.createMessage(currentSession.id, content);
 
-        // 4. 启动进度追踪（带实时 UI 更新）
+        // 4. 启动进度追踪
         const tracker = new ProgressTracker(
             currentSession.id,
             (steps) => {
-                // 更新进度条
-                ui.updateProgress(steps);
-
-                // 实时显示思考过程和工具调用
-                const latestStep = steps[steps.length - 1];
-                if (latestStep) {
-                    if (latestStep.status === 'thinking' && latestStep.reasoning_content) {
-                        // 显示思考过程
-                        _showReasoning(streamContentDiv, latestStep.reasoning_content);
-                    } else if (latestStep.status === 'tool_calling' || latestStep.status === 'tool_executing') {
-                        // 显示工具调用
-                        _showToolCall(streamContentDiv, latestStep);
-                    }
+                // 实时更新当前正在生成消息的执行步骤
+                if (currentStreamingMessage) {
+                    const contentDiv = currentStreamingMessage.querySelector('.stream-content');
+                    _renderExecutionSteps(contentDiv, steps, true); // true = 流式更新模式
                 }
             },
             (success, data) => {
                 if (!success) {
                     console.warn('Progress tracking failed:', data);
+                    if (currentStreamingMessage) {
+                        // 显示错误状态
+                        const stepsContainer = currentStreamingMessage.querySelector('.message-execution-steps');
+                        if (stepsContainer) {
+                            const errorDiv = document.createElement('div');
+                            errorDiv.className = 'execution-step';
+                            errorDiv.innerHTML = `
+                                <div class="step-error">
+                                    <strong>❌ 处理失败:</strong> ${data?.message || '未知错误'}
+                                </div>
+                            `;
+                            stepsContainer.appendChild(errorDiv);
+                        }
+                    }
                 }
             }
         );
 
         tracker.start();
 
-        // 等待完成（但设置超时保护）
+        // 等待完成
         const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Timeout')), 6 * 60 * 1000)
         );
@@ -666,85 +590,15 @@ async function sendMessage(e) {
         // 5. 加载最终消息列表
         await loadMessages();
         setTimeout(() => ui.refreshPreview(), 500);
-        ui.hideAIStatus();
     } catch (error) {
-        ui.showAIStatus('error', '消息发送失败，请重试');
         console.error('发送消息失败:', error);
-
-        // 出错时也要移除临时的 AI 消息容器
+        ui.showSystemMessage(`发送消息失败: ${error.message}`);
         aiDiv.remove();
     } finally {
         elements.messageInput.disabled = false;
         elements.messageInput.focus();
+        currentStreamingMessage = null; // 清空引用
     }
-}
-
-// 辅助函数：显示思考过程
-function _showReasoning(container, content) {
-    let reasoningDiv = container.querySelector('.message-reasoning');
-    if (!reasoningDiv) {
-        reasoningDiv = document.createElement('div');
-        reasoningDiv.className = 'message-reasoning';
-        container.insertBefore(reasoningDiv, container.firstChild);
-    }
-    // 使用 append 而不是覆盖，以显示完整的思考过程
-    const contentDiv = reasoningDiv.querySelector('.reasoning-content');
-    if (contentDiv) {
-        contentDiv.textContent += content;
-    } else {
-        reasoningDiv.innerHTML = `
-            <details open>
-                <summary>🤔 思考过程</summary>
-                <pre class="reasoning-content">${utils.escapeHtml(content)}</pre>
-            </details>
-        `;
-    }
-}
-
-// 辅助函数：显示工具调用
-function _showToolCall(container, step) {
-    let toolsDiv = container.querySelector('.message-tools');
-    if (!toolsDiv) {
-        toolsDiv = document.createElement('div');
-        toolsDiv.className = 'message-tools';
-        container.insertBefore(toolsDiv, container.firstChild);
-    }
-
-    // 查找是否已有该工具的显示
-    const existingTool = toolsDiv.querySelector(`[data-tool-name="${step.tool_name}"]`);
-    if (existingTool) {
-        // 更新状态
-        const statusSpan = existingTool.querySelector('.tool-status');
-        if (step.status === 'tool_executing') {
-            statusSpan.textContent = '⚙️';
-        } else if (step.status === 'tool_completed' || step.status === 'completed') {
-            statusSpan.textContent = '✅';
-            existingTool.classList.remove('executing');
-            existingTool.classList.add('completed');
-        }
-        return;
-    }
-
-    // 创建新的工具显示
-    const toolDiv = document.createElement('div');
-    toolDiv.className = 'tool-call executing';
-    toolDiv.dataset.toolName = step.tool_name;
-
-    let argsHtml = '';
-    if (step.tool_arguments) {
-        const args = typeof step.tool_arguments === 'string'
-            ? JSON.parse(step.tool_arguments)
-            : step.tool_arguments;
-        argsHtml = `<pre>${utils.escapeHtml(JSON.stringify(args, null, 2))}</pre>`;
-    }
-
-    toolDiv.innerHTML = `
-        <span class="tool-status">⚙️</span>
-        <span class="tool-name">${utils.escapeHtml(step.tool_name)}</span>
-        ${argsHtml}
-    `;
-
-    toolsDiv.appendChild(toolDiv);
 }
 
 // 应用初始化
