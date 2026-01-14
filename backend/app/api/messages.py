@@ -413,6 +413,7 @@ async def _run_agent_loop(
                     tool_call_id=tool_call.get("id", "")
                 )
                 db.add(tool_message)
+                db.commit()  # 立即提交，确保下次迭代能查询到此消息
 
                 ai_messages.append({
                     "role": "tool",
@@ -447,6 +448,7 @@ async def _run_agent_loop(
                     tool_call_id=tool_call.get("id", "")
                 )
                 db.add(tool_message)
+                db.commit()  # 立即提交，确保下次迭代能查询到此消息
 
                 ai_messages.append({
                     "role": "tool",

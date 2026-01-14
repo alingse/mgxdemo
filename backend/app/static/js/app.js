@@ -17,7 +17,6 @@ const elements = {
     logoutBtn: document.getElementById('logoutBtn'),
     refreshPreviewBtn: document.getElementById('refreshPreviewBtn'),
     showSessionsBtn: document.getElementById('showSessionsBtn'),
-    hideSessionsBtn: document.getElementById('hideSessionsBtn'),
     newSessionInlineBtn: document.getElementById('newSessionInlineBtn'),
     currentSessionTitle: document.getElementById('currentSessionTitle')
 };
@@ -320,18 +319,6 @@ const ui = {
     toggleSidebar() {
         sidebarVisible = !sidebarVisible;
         elements.sessionSidebar.classList.toggle('open', sidebarVisible);
-        // 更新按钮图标方向
-        const toggleBtn = elements.hideSessionsBtn;
-        if (toggleBtn) {
-            const svg = toggleBtn.querySelector('svg');
-            if (sidebarVisible) {
-                // 展开状态：显示收起图标（向左箭头）
-                svg.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="15" y1="3" x2="15" y2="21"></line>';
-            } else {
-                // 收起状态：显示展开图标（向右箭头）
-                svg.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line>';
-            }
-        }
     },
 
     showSidebar() {
@@ -569,6 +556,39 @@ async function sendMessage(e) {
 
     elements.messageInput.disabled = true;
     elements.messageInput.value = '';
+
+    // 1. 立即显示用户消息
+    const userDiv = document.createElement('div');
+    userDiv.className = 'message message-user';
+    userDiv.innerHTML = `
+        <div class="message-avatar">
+            <img src="/static/img/user-avatar.svg" alt="User">
+        </div>
+        <div class="message-content">
+            <div class="message-bubble">${utils.escapeHtml(content)}</div>
+            <div class="message-time">${utils.formatTime(new Date())}</div>
+        </div>
+    `;
+    elements.messagesContainer.appendChild(userDiv);
+
+    // 2. 创建空的 AI 消息容器（用于流式显示）
+    const aiDiv = document.createElement('div');
+    aiDiv.className = 'message message-assistant';
+    aiDiv.innerHTML = `
+        <div class="message-avatar">
+            <img src="/static/img/ai-avatar.svg" alt="AI">
+        </div>
+        <div class="message-content stream-content">
+            <div class="message-bubble streaming">
+                <span class="typing-cursor">▋</span>
+            </div>
+        </div>
+    `;
+    elements.messagesContainer.appendChild(aiDiv);
+
+    const streamContentDiv = aiDiv.querySelector('.stream-content');
+    const bubbleElement = aiDiv.querySelector('.message-bubble');
+
     ui.showAIStatus('thinking', 'AI 正在思考...');
 
     // 重置进度条
@@ -578,14 +598,29 @@ async function sendMessage(e) {
     if (progressText) progressText.textContent = '0%';
 
     try {
-        // 创建消息
+        // 3. 发送消息（使用现有 API）
         await api.createMessage(currentSession.id, content);
 
-        // 启动进度追踪
+        // 4. 启动进度追踪（带实时 UI 更新）
         const tracker = new ProgressTracker(
             currentSession.id,
-            (steps) => ui.updateProgress(steps),  // onUpdate
-            (success, data) => {                  // onComplete
+            (steps) => {
+                // 更新进度条
+                ui.updateProgress(steps);
+
+                // 实时显示思考过程和工具调用
+                const latestStep = steps[steps.length - 1];
+                if (latestStep) {
+                    if (latestStep.status === 'thinking' && latestStep.reasoning_content) {
+                        // 显示思考过程
+                        _showReasoning(streamContentDiv, latestStep.reasoning_content);
+                    } else if (latestStep.status === 'tool_calling' || latestStep.status === 'tool_executing') {
+                        // 显示工具调用
+                        _showToolCall(streamContentDiv, latestStep);
+                    }
+                }
+            },
+            (success, data) => {
                 if (!success) {
                     console.warn('Progress tracking failed:', data);
                 }
@@ -607,17 +642,82 @@ async function sendMessage(e) {
             tracker.stop();
         }
 
-        // 加载消息列表
+        // 5. 加载最终消息列表
         await loadMessages();
         setTimeout(() => ui.refreshPreview(), 500);
         ui.hideAIStatus();
     } catch (error) {
         ui.showAIStatus('error', '消息发送失败，请重试');
         console.error('发送消息失败:', error);
+
+        // 出错时也要移除临时的 AI 消息容器
+        aiDiv.remove();
     } finally {
         elements.messageInput.disabled = false;
         elements.messageInput.focus();
     }
+}
+
+// 辅助函数：显示思考过程
+function _showReasoning(container, content) {
+    let reasoningDiv = container.querySelector('.message-reasoning');
+    if (!reasoningDiv) {
+        reasoningDiv = document.createElement('div');
+        reasoningDiv.className = 'message-reasoning';
+        container.insertBefore(reasoningDiv, container.firstChild);
+    }
+    reasoningDiv.innerHTML = `
+        <details open>
+            <summary>🤔 思考过程</summary>
+            <pre>${utils.escapeHtml(content)}</pre>
+        </details>
+    `;
+}
+
+// 辅助函数：显示工具调用
+function _showToolCall(container, step) {
+    let toolsDiv = container.querySelector('.message-tools');
+    if (!toolsDiv) {
+        toolsDiv = document.createElement('div');
+        toolsDiv.className = 'message-tools';
+        container.insertBefore(toolsDiv, container.firstChild);
+    }
+
+    // 查找是否已有该工具的显示
+    const existingTool = toolsDiv.querySelector(`[data-tool-name="${step.tool_name}"]`);
+    if (existingTool) {
+        // 更新状态
+        const statusSpan = existingTool.querySelector('.tool-status');
+        if (step.status === 'tool_executing') {
+            statusSpan.textContent = '⚙️';
+        } else if (step.status === 'tool_completed' || step.status === 'completed') {
+            statusSpan.textContent = '✅';
+            existingTool.classList.remove('executing');
+            existingTool.classList.add('completed');
+        }
+        return;
+    }
+
+    // 创建新的工具显示
+    const toolDiv = document.createElement('div');
+    toolDiv.className = 'tool-call executing';
+    toolDiv.dataset.toolName = step.tool_name;
+
+    let argsHtml = '';
+    if (step.tool_arguments) {
+        const args = typeof step.tool_arguments === 'string'
+            ? JSON.parse(step.tool_arguments)
+            : step.tool_arguments;
+        argsHtml = `<pre>${utils.escapeHtml(JSON.stringify(args, null, 2))}</pre>`;
+    }
+
+    toolDiv.innerHTML = `
+        <span class="tool-status">⚙️</span>
+        <span class="tool-name">${utils.escapeHtml(step.tool_name)}</span>
+        ${argsHtml}
+    `;
+
+    toolsDiv.appendChild(toolDiv);
 }
 
 // 应用初始化
@@ -686,7 +786,6 @@ function setupEventListeners() {
     elements.logoutBtn.addEventListener('click', handleLogout);
     elements.refreshPreviewBtn.addEventListener('click', ui.refreshPreview);
     elements.showSessionsBtn.addEventListener('click', ui.toggleSidebar);
-    elements.hideSessionsBtn.addEventListener('click', ui.toggleSidebar);
     elements.newSessionInlineBtn.addEventListener('click', createNewSession);
 
     elements.messageInput.addEventListener('keypress', (e) => {

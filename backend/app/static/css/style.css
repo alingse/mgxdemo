@@ -715,15 +715,7 @@ body {
 }
 
 .session-sidebar-header {
-    padding: 15px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--border);
-    gap: var(--space-sm);
-    width: 280px;
-    box-sizing: border-box;
-    flex-shrink: 0;
+    display: none; /* /chat 页面不需要 header */
 }
 
 .session-sidebar-header h2 {
@@ -738,6 +730,18 @@ body {
 
 .session-sidebar-header .btn-icon {
     flex-shrink: 0;
+}
+
+/* 首页的 sidebar-header 保持原样 */
+.landing-sidebar .sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid var(--border);
+    gap: var(--space-sm);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 /* Chat Area */
@@ -1711,4 +1715,112 @@ body {
 
 .step-error strong {
     font-weight: 600;
+}
+
+/* ========================================
+   STREAMING OUTPUT STYLES
+   ======================================== */
+
+/* 流式内容容器 */
+.stream-content {
+    position: relative;
+}
+
+/* 打字机光标动画 */
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+.typing-cursor {
+    display: inline-block;
+    color: var(--text);
+    font-weight: bold;
+    animation: blink 1s infinite;
+    margin-left: 2px;
+}
+
+/* 流式消息气泡 */
+.message-bubble.streaming {
+    position: relative;
+}
+
+/* 思考过程（流式版本） */
+.message-reasoning {
+    margin-bottom: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+    font-size: 13px;
+}
+
+.message-reasoning summary {
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-weight: 600;
+    user-select: none;
+}
+
+.message-reasoning summary:hover {
+    color: var(--text);
+}
+
+.message-reasoning pre {
+    margin: 8px 0 0 0;
+    padding: 10px;
+    background: var(--input-bg-hover);
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* 工具调用（流式版本） */
+.message-tools {
+    margin-bottom: 10px;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    padding: 10px;
+    font-size: 13px;
+}
+
+.tool-call {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.tool-call:last-child {
+    border-bottom: none;
+}
+
+.tool-call.executing {
+    animation: pulse 2s infinite;
+}
+
+.tool-call.completed {
+    animation: none;
+}
+
+.tool-status {
+    font-size: 14px;
+}
+
+.tool-name {
+    font-weight: 600;
+    color: #92400e;
+}
+
+.tool-call pre {
+    margin: 4px 0 0 0;
+    padding: 8px;
+    background: #fef9c3;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 11px;
 }
