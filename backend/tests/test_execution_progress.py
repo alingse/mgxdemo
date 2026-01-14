@@ -1,11 +1,11 @@
 """测试执行进度追踪功能"""
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.database import SessionLocal, init_db, engine
-from app.models import User, Session, Message, AgentExecutionStep, ExecutionStatus, MessageRole
-from sqlalchemy import text
+from app.database import SessionLocal, init_db
+from app.models import AgentExecutionStep, ExecutionStatus, Message, MessageRole, Session, User
 
 
 def test_execution_progress():
@@ -93,7 +93,10 @@ def test_execution_progress():
         )
         db.add(step2)
         db.commit()
-        print(f"✓ 步骤 2: {step2.status.value} (tool={step2.tool_name}, progress={step2.progress}%)")
+        print(
+            f"✓ 步骤 2: {step2.status.value} "
+            f"(tool={step2.tool_name}, progress={step2.progress}%)"
+        )
 
         # 步骤 3: 工具执行中
         step3 = AgentExecutionStep(
@@ -109,7 +112,10 @@ def test_execution_progress():
         )
         db.add(step3)
         db.commit()
-        print(f"✓ 步骤 3: {step3.status.value} (tool={step3.tool_name}, progress={step3.progress}%)")
+        print(
+            f"✓ 步骤 3: {step3.status.value} "
+            f"(tool={step3.tool_name}, progress={step3.progress}%)"
+        )
 
         # 步骤 4: 工具完成
         step4 = AgentExecutionStep(
@@ -126,7 +132,10 @@ def test_execution_progress():
         )
         db.add(step4)
         db.commit()
-        print(f"✓ 步骤 4: {step4.status.value} (tool={step4.tool_name}, progress={step4.progress}%)")
+        print(
+            f"✓ 步骤 4: {step4.status.value} "
+            f"(tool={step4.tool_name}, progress={step4.progress}%)"
+        )
 
         # 步骤 5: 第二轮思考
         step5 = AgentExecutionStep(
@@ -140,7 +149,10 @@ def test_execution_progress():
         )
         db.add(step5)
         db.commit()
-        print(f"✓ 步骤 5: {step5.status.value} (iteration={step5.iteration}, progress={step5.progress}%)")
+        print(
+            f"✓ 步骤 5: {step5.status.value} "
+            f"(iteration={step5.iteration}, progress={step5.progress}%)"
+        )
 
         # 步骤 6: 完成
         step6 = AgentExecutionStep(
@@ -159,7 +171,7 @@ def test_execution_progress():
         message.content = "我已经为您创建了一个待办事项列表应用。"
         message.reasoning_content = step5.reasoning_content
         db.commit()
-        print(f"✓ 消息已更新")
+        print("✓ 消息已更新")
 
         # 查询测试
         print("\n查询测试...")

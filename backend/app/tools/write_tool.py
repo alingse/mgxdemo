@@ -1,6 +1,7 @@
-from typing import Any, Dict
-from app.tools.base import AgentTool
+from typing import Any
+
 from app.services import sandbox_service
+from app.tools.base import AgentTool
 
 
 class WriteTool(AgentTool):
@@ -22,7 +23,7 @@ class WriteTool(AgentTool):
         )
 
     @property
-    def parameters(self) -> Dict[str, Any]:
+    def parameters(self) -> dict[str, Any]:
         return {
             "type": "object",
             "properties": {

@@ -1,9 +1,10 @@
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
+
 from sqlalchemy.orm import Session
-from app.tools.base import AgentTool
+
 from app.models.todo import Todo
-from sqlalchemy.sql import func
+from app.tools.base import AgentTool
 
 
 class TodoTool(AgentTool):
@@ -29,7 +30,7 @@ class TodoTool(AgentTool):
         )
 
     @property
-    def parameters(self) -> Dict[str, Any]:
+    def parameters(self) -> dict[str, Any]:
         return {
             "type": "object",
             "properties": {
@@ -98,7 +99,7 @@ class TodoTool(AgentTool):
         todo = self.db.query(Todo).filter(
             Todo.session_id == self.session_id,
             Todo.task.contains(task),
-            Todo.completed == False
+            Todo.completed.is_(False)
         ).first()
 
         if not todo:

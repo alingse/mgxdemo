@@ -1,7 +1,8 @@
 import asyncio
 import shlex
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
+
 from app.tools.base import AgentTool
 
 
@@ -31,7 +32,7 @@ class BashTool(AgentTool):
         )
 
     @property
-    def parameters(self) -> Dict[str, Any]:
+    def parameters(self) -> dict[str, Any]:
         return {
             "type": "object",
             "properties": {
@@ -54,7 +55,8 @@ class BashTool(AgentTool):
             # 检查命令是否在白名单中
             base_command = parts[0]
             if base_command not in self.ALLOWED_COMMANDS:
-                return f"错误：不允许执行命令 '{base_command}'。仅支持：{', '.join(self.ALLOWED_COMMANDS)}"
+                allowed = ', '.join(self.ALLOWED_COMMANDS)
+                return f"错误：不允许执行命令 '{base_command}'。仅支持：{allowed}"
 
             # 确保沙箱目录存在
             self.session_path.mkdir(parents=True, exist_ok=True)
@@ -72,7 +74,7 @@ class BashTool(AgentTool):
                     process.communicate(),
                     timeout=self.timeout
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 process.kill()
                 return f"错误：命令执行超时（>{self.timeout}秒）"
 

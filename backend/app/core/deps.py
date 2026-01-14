@@ -1,19 +1,20 @@
-from typing import Optional
-from fastapi import Depends, HTTPException, status, Cookie
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+from fastapi import Cookie, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
-from app.database import get_db
+
 from app.core.security import decode_access_token
+from app.database import get_db
 from app.models.user import User
 
 security = HTTPBearer()
 
 
 def get_current_user(
-    authorization: Optional[HTTPAuthorizationCredentials] = Depends(
+    authorization: HTTPAuthorizationCredentials | None = Depends(
         HTTPBearer(auto_error=False)
     ),
-    access_token: Optional[str] = Cookie(None),
+    access_token: str | None = Cookie(None),
     db: Session = Depends(get_db)
 ) -> User:
     """Get the current authenticated user from Bearer token or Cookie."""
@@ -67,12 +68,12 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
 
 
 def get_current_user_optional(
-    authorization: Optional[HTTPAuthorizationCredentials] = Depends(
+    authorization: HTTPAuthorizationCredentials | None = Depends(
         HTTPBearer(auto_error=False)
     ),
-    access_token: Optional[str] = Cookie(None),
+    access_token: str | None = Cookie(None),
     db: Session = Depends(get_db)
-) -> Optional[User]:
+) -> User | None:
     """Get current user from Bearer token or Cookie. Returns None if not authenticated."""
     token = None
 

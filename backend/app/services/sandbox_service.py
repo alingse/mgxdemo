@@ -1,9 +1,9 @@
-import os
-import aiofiles
-from pathlib import Path
-from typing import Dict, List, Optional
-from app.config import get_settings
 import re
+from pathlib import Path
+
+import aiofiles
+
+from app.config import get_settings
 
 settings = get_settings()
 
@@ -89,7 +89,7 @@ h1 {
         for filename, content in default_files.items():
             await self.write_file(user_id, session_id, filename, content)
 
-    async def list_files(self, user_id: int, session_id: str) -> List[str]:
+    async def list_files(self, user_id: int, session_id: str) -> list[str]:
         """List all files in the sandbox."""
         sandbox_path = self._get_sandbox_path(user_id, session_id)
         if not sandbox_path.exists():
@@ -110,7 +110,7 @@ h1 {
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {filename}")
 
-        async with aiofiles.open(file_path, mode='r') as f:
+        async with aiofiles.open(file_path) as f:
             return await f.read()
 
     async def write_file(self, user_id: int, session_id: str, filename: str, content: str) -> None:
@@ -136,7 +136,6 @@ h1 {
 
         # Add new file size
         if current_size + content_size > self.max_sandbox_size:
-            size_mb = (current_size + content_size) / (1024 * 1024)
             raise ValueError(
                 f"Sandbox size would exceed limit of {settings.max_sandbox_size_mb}MB "
                 f"(current: {current_size / (1024 * 1024):.2f}MB, "
@@ -155,7 +154,7 @@ h1 {
         if file_path.exists():
             file_path.unlink()
 
-    async def get_all_files(self, user_id: int, session_id: str) -> Dict[str, str]:
+    async def get_all_files(self, user_id: int, session_id: str) -> dict[str, str]:
         """Get all files and their contents."""
         files = {}
         for filename in await self.list_files(user_id, session_id):
@@ -165,7 +164,7 @@ h1 {
                 pass
         return files
 
-    async def update_files(self, user_id: int, session_id: str, files: Dict[str, str]) -> None:
+    async def update_files(self, user_id: int, session_id: str, files: dict[str, str]) -> None:
         """Update multiple files in the sandbox."""
         for filename, content in files.items():
             await self.write_file(user_id, session_id, filename, content)

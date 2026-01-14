@@ -1,13 +1,14 @@
+
 import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse, HTMLResponse
-from sqlalchemy.orm import Session
-from typing import List, Dict, Optional
 from pydantic import BaseModel
-from app.database import get_db
-from app.models.user import User
-from app.models.session import Session as SessionModel
+from sqlalchemy.orm import Session
+
 from app.core.deps import get_current_user, get_current_user_optional
+from app.database import get_db
+from app.models.session import Session as SessionModel
+from app.models.user import User
 from app.services.sandbox_service import get_sandbox_service
 
 router = APIRouter(prefix="/api/sessions/{session_id}/sandbox", tags=["sandbox"])
@@ -34,7 +35,7 @@ class FileUpdate(BaseModel):
     content: str
 
 
-@router.get("/files", response_model=List[str])
+@router.get("/files", response_model=list[str])
 async def list_files(
     session_id: str,
     current_user: User = Depends(get_current_user),
@@ -64,8 +65,8 @@ async def get_file(
     except FileNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"File not found: {filename}"
-        )
+            detail=f"File not found: {filename}",
+        ) from None
 
 
 @router.post("/files/{filename}", status_code=status.HTTP_201_CREATED)
@@ -86,8 +87,8 @@ async def create_or_update_file(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+            detail=str(e),
+        ) from e
 
 
 @router.delete("/files/{filename}", status_code=status.HTTP_204_NO_CONTENT)
@@ -106,7 +107,7 @@ async def delete_file(
 @router.get("/preview")
 async def preview_sandbox(
     session_id: str,
-    current_user: Optional[User] = Depends(get_current_user_optional),
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     """Preview the sandbox as HTML."""
@@ -137,7 +138,7 @@ async def preview_sandbox(
         )
 
     # Read the HTML content
-    async with aiofiles.open(index_path, mode='r') as f:
+    async with aiofiles.open(index_path) as f:
         html_content = await f.read()
 
     # Inject base tag to fix resource paths
@@ -160,7 +161,7 @@ async def preview_sandbox(
 async def get_static_file(
     session_id: str,
     filename: str,
-    current_user: Optional[User] = Depends(get_current_user_optional),
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     """Get a static file (CSS, JS) from the sandbox."""

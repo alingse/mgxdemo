@@ -1,10 +1,12 @@
-from typing import AsyncIterator, Dict, List, Optional, Tuple, Any
+import json
+import logging
+from collections.abc import AsyncIterator
+from typing import Any
+
 from openai import AsyncOpenAI
+
 from app.config import get_settings
 from app.services.base import AIService
-import logging
-
-import json
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -46,9 +48,9 @@ _DEEPSEEK_SYSTEM_PROMPT = """你是一个专业的网页开发AI助手，通过�
 
 
 def _ensure_system_prompt(
-    messages: List[Dict[str, str]],
+    messages: list[dict[str, str]],
     system_prompt: str
-) -> List[Dict[str, str]]:
+) -> list[dict[str, str]]:
     """确保消息列表以系统提示开头。"""
     if not messages:
         return [{"role": "system", "content": system_prompt}]
@@ -60,19 +62,33 @@ def _ensure_system_prompt(
     return messages
 
 
-def _build_tool_calls_history(tool_calls) -> List[Dict[str, Any]]:
-    """构建工具调用历史记录。"""
+def _build_tool_calls_history(tool_calls) -> list[dict[str, Any]]:
+    """构建工具调用历史记录（符合 OpenAI API 格式）。
+
+    OpenAI/DeepSeek API 要求的格式：
+    {
+        "id": "call_xxx",
+        "type": "function",
+        "function": {
+            "name": "tool_name",
+            "arguments": "{...}"  # JSON 字符串
+        }
+    }
+    """
     history = []
     for tool_call in tool_calls:
         history.append({
             "id": tool_call.id,
-            "name": tool_call.function.name,
-            "arguments": json.loads(tool_call.function.arguments)
+            "type": "function",
+            "function": {
+                "name": tool_call.function.name,
+                "arguments": tool_call.function.arguments  # 保持原始 JSON 字符串
+            }
         })
     return history
 
 
-def _extract_json_from_response(content: str) -> Dict[str, str]:
+def _extract_json_from_response(content: str) -> dict[str, str]:
     """从AI响应中提取JSON对象。"""
     try:
         start_idx = content.find("{")
@@ -106,9 +122,12 @@ class DeepSeekService(AIService):
         else:
             self.model = settings.deepseek_model or "deepseek-chat"
 
-        logger.info(f"DeepSeek service initialized with model: {self.model}, reasoning: {enable_reasoning}")
+        logger.info(
+            f"DeepSeek service initialized with model: {self.model}, "
+            f"reasoning: {enable_reasoning}"
+        )
 
-    async def chat(self, messages: List[Dict]) -> AsyncIterator[str]:
+    async def chat(self, messages: list[dict]) -> AsyncIterator[str]:
         """流式对话（不使用工具）"""
         stream = await self.client.chat.completions.create(
             model=self.model,
@@ -123,8 +142,8 @@ class DeepSeekService(AIService):
     async def modify_files(
         self,
         instruction: str,
-        current_files: Dict[str, str]
-    ) -> Dict[str, str]:
+        current_files: dict[str, str]
+    ) -> dict[str, str]:
         """修改文件（使用思考模式）"""
         system_prompt = """你是一个网页开发助手。用户会要求你修改他们的网页项目中的文件。
 
@@ -174,9 +193,9 @@ class DeepSeekService(AIService):
 
     async def chat_with_tools(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]]
-    ) -> Tuple[str, List[Dict[str, Any]], Optional[str]]:
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]]
+    ) -> tuple[str, list[dict[str, Any]], str | None]:
         """使用工具调用的对话（支持思考模式）。
 
         Args:
@@ -225,7 +244,7 @@ class DeepSeekService(AIService):
             logger.error(f"DeepSeek tool calling error: {e}")
             return f"AI服务调用失败：{str(e)}", [], None
 
-    def clear_reasoning_from_messages(self, messages: List[Dict]) -> None:
+    def clear_reasoning_from_messages(self, messages: list[dict]) -> None:
         """清除消息历史中的 reasoning_content
 
         在新的用户问题开始时调用，以节省带宽。

@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import AsyncIterator, Dict, List, Optional, Tuple, Any
+from collections.abc import AsyncIterator
+from typing import Any
 
 
 class AIService(ABC):
     """Abstract base class for AI services."""
 
     @abstractmethod
-    async def chat(self, messages: List[Dict]) -> AsyncIterator[str]:
+    async def chat(self, messages: list[dict]) -> AsyncIterator[str]:
         """Stream chat completion."""
         pass
 
@@ -14,17 +15,17 @@ class AIService(ABC):
     async def modify_files(
         self,
         instruction: str,
-        current_files: Dict[str, str]
-    ) -> Dict[str, str]:
+        current_files: dict[str, str]
+    ) -> dict[str, str]:
         """Modify sandbox files based on instruction."""
         pass
 
     @abstractmethod
     async def chat_with_tools(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]]
-    ) -> Tuple[str, List[Dict[str, Any]], Optional[str]]:
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]]
+    ) -> tuple[str, list[dict[str, Any]], str | None]:
         """Chat with tool calling support.
 
         Args:

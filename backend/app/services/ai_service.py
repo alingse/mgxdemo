@@ -1,10 +1,13 @@
-from typing import AsyncIterator, Dict, List, Optional, Tuple, Any
+import json
+import logging
+from collections.abc import AsyncIterator
+from typing import Any
+
 from openai import AsyncOpenAI
+
 from app.config import get_settings
 from app.services.base import AIService
 from app.services.deepseek_service import DeepSeekService
-import json
-import logging
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -124,7 +127,7 @@ _SYSTEM_PROMPT_TEMPLATE = """你是一个专业的网页开发AI助手，通过�
 """
 
 
-def _extract_json_from_response(content: str) -> Dict[str, str]:
+def _extract_json_from_response(content: str) -> dict[str, str]:
     """从AI响应中提取JSON对象。
 
     Args:
@@ -145,9 +148,9 @@ def _extract_json_from_response(content: str) -> Dict[str, str]:
 
 
 def _ensure_system_prompt(
-    messages: List[Dict[str, str]],
+    messages: list[dict[str, str]],
     system_prompt: str
-) -> List[Dict[str, str]]:
+) -> list[dict[str, str]]:
     """确保消息列表以系统提示开头。
 
     Args:
@@ -167,7 +170,7 @@ def _ensure_system_prompt(
     return messages
 
 
-def _build_tool_calls_history(tool_calls) -> List[Dict[str, Any]]:
+def _build_tool_calls_history(tool_calls) -> list[dict[str, Any]]:
     """构建工具调用历史记录。
 
     Args:
@@ -203,7 +206,7 @@ class OpenAIService(AIService):
             )
             self.model = settings.openai_model
 
-    async def chat(self, messages: List[Dict]) -> AsyncIterator[str]:
+    async def chat(self, messages: list[dict]) -> AsyncIterator[str]:
         """流式对话。"""
         stream = await self.client.chat.completions.create(
             model=self.model,
@@ -217,8 +220,8 @@ class OpenAIService(AIService):
     async def modify_files(
         self,
         instruction: str,
-        current_files: Dict[str, str]
-    ) -> Dict[str, str]:
+        current_files: dict[str, str]
+    ) -> dict[str, str]:
         """修改文件（使用OpenAI）。"""
         system_prompt = """You are a web development assistant. The user will ask you to modify files in their web project.
 
@@ -251,9 +254,9 @@ Only include files that need to be created or modified. Do not include any expla
 
     async def chat_with_tools(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]]
-    ) -> Tuple[str, List[Dict[str, Any]], Optional[str]]:
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]]
+    ) -> tuple[str, list[dict[str, Any]], str | None]:
         """使用工具调用的对话（OpenAI）。"""
         messages = _ensure_system_prompt(messages, _SYSTEM_PROMPT_TEMPLATE)
 
@@ -290,7 +293,7 @@ class ZhipuService(AIService):
         )
         self.model = settings.zhipu_model
 
-    async def chat(self, messages: List[Dict]) -> AsyncIterator[str]:
+    async def chat(self, messages: list[dict]) -> AsyncIterator[str]:
         """流式对话。"""
         stream = await self.client.chat.completions.create(
             model=self.model,
@@ -304,8 +307,8 @@ class ZhipuService(AIService):
     async def modify_files(
         self,
         instruction: str,
-        current_files: Dict[str, str]
-    ) -> Dict[str, str]:
+        current_files: dict[str, str]
+    ) -> dict[str, str]:
         """修改文件（使用智谱AI）。"""
         system_prompt = """你是一个网页开发助手。用户会要求你修改他们的网页项目中的文件。
 
@@ -338,9 +341,9 @@ class ZhipuService(AIService):
 
     async def chat_with_tools(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]]
-    ) -> Tuple[str, List[Dict[str, Any]], Optional[str]]:
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]]
+    ) -> tuple[str, list[dict[str, Any]], str | None]:
         """使用工具调用的对话（智谱AI）。"""
         messages = _ensure_system_prompt(messages, _SYSTEM_PROMPT_TEMPLATE)
 
@@ -395,7 +398,7 @@ class AIServiceFactory:
         return AIServiceFactory.create_service("deepseek", enable_reasoning=True)
 
 
-def get_ai_service(provider: Optional[str] = None, enable_reasoning: bool = True) -> AIService:
+def get_ai_service(provider: str | None = None, enable_reasoning: bool = True) -> AIService:
     """获取 DeepSeek AI 服务实例
 
     Args:

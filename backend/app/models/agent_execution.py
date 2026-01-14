@@ -1,10 +1,12 @@
 """Agent execution tracking models."""
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum, Float
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
-from app.database import Base
 import enum
 import json
+
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
+from app.database import Base
 
 
 class ExecutionStatus(str, enum.Enum):

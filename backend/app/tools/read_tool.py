@@ -1,6 +1,7 @@
-from typing import Any, Dict
-from app.tools.base import AgentTool
+from typing import Any
+
 from app.services import sandbox_service
+from app.tools.base import AgentTool
 
 
 class ReadTool(AgentTool):
@@ -19,7 +20,7 @@ class ReadTool(AgentTool):
         return "读取沙箱中文件的内容。需要提供文件名。"
 
     @property
-    def parameters(self) -> Dict[str, Any]:
+    def parameters(self) -> dict[str, Any]:
         return {
             "type": "object",
             "properties": {

@@ -158,6 +158,11 @@ cp .env.example .env
 - `write_file` 方法在写入前检查是否超过 `MAX_SANDBOX_SIZE_MB`
 - 超限时返回详细错误信息（当前大小、新文件大小、限制值）
 
+**Tool Calls 处理**（messages.py:312-327）：
+- DeepSeek API 返回格式：`{"id": "call_xxx", "type": "function", "function": {"name": "...", "arguments": "{...}"}}`
+- `arguments` 是 JSON 字符串，需 `json.loads()` 解析为字典后再传 `execute_tool()`
+- 参考：https://api-docs.deepseek.com/zh-cn/guides/tool_calls
+
 ### 沙箱预览架构
 
 **设计原则：安全性优先，使用 iframe 隔离用户代码**

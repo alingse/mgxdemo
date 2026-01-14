@@ -1,8 +1,10 @@
-from datetime import datetime
-from typing import List
-
 import json
 import logging
+from datetime import datetime
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.core.deps import get_current_user
@@ -16,8 +18,6 @@ from app.schemas.session import MessageCreate, MessageResponse
 from app.services.ai_service import get_ai_service
 from app.services.sandbox_service import get_sandbox_service
 from app.tools.agent_sandbox import AgentSandbox
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sessions/{session_id}/messages", tags=["messages"])
@@ -43,6 +43,55 @@ _SYSTEM_PROMPT = """你是一个网页开发助手。你帮助用户创建和修
 - 简洁的样式设计"
 
 不要输出代码，系统会自动处理代码生成。"""
+
+
+def _convert_tool_calls_to_api_format(tool_calls_data: Any) -> list[dict] | None:
+    """将数据库中的 tool_calls 格式转换为 API 格式。
+
+    数据库存储格式:
+    [{"id": "call_xxx", "name": "todo", "arguments": {...}}]
+
+    API 需要的格式:
+    [{
+        "id": "call_xxx",
+        "type": "function",
+        "function": {
+            "name": "todo",
+            "arguments": "{...}"  # JSON 字符串
+        }
+    }]
+    """
+    if not tool_calls_data:
+        return None
+
+    try:
+        if isinstance(tool_calls_data, str):
+            parsed = json.loads(tool_calls_data)
+        else:
+            parsed = tool_calls_data
+
+        if not isinstance(parsed, list):
+            return None
+
+        api_format = []
+        for item in parsed:
+            if isinstance(item, dict) and "id" in item:
+                if "function" in item:
+                    api_format.append(item)
+                elif "name" in item and "arguments" in item:
+                    api_format.append({
+                        "id": item["id"],
+                        "type": "function",
+                        "function": {
+                            "name": item["name"],
+                            "arguments": json.dumps(item["arguments"], ensure_ascii=False)
+                        }
+                    })
+
+        return api_format if api_format else None
+    except (json.JSONDecodeError, TypeError, KeyError) as e:
+        logger.warning(f"Failed to convert tool_calls: {e}")
+        return None
 
 
 def _verify_session_access(session_id: str, user_id: int, db: Session) -> SessionModel:
@@ -120,12 +169,12 @@ async def _build_contextual_user_prompt(
     # 2. 添加历史TODO状态
     pending_todos = db.query(Todo).filter(
         Todo.session_id == session_id,
-        Todo.completed == False
+        Todo.completed.is_(False)
     ).order_by(Todo.created_at.asc()).all()
 
     completed_todos = db.query(Todo).filter(
         Todo.session_id == session_id,
-        Todo.completed == True
+        Todo.completed.is_(True)
     ).order_by(Todo.completed_at.desc()).limit(5).all()
 
     if pending_todos:
@@ -134,7 +183,7 @@ async def _build_contextual_user_prompt(
         context_parts.append("")
 
     if completed_todos:
-        context_parts.append(f"## 已完成任务（最近5项）")
+        context_parts.append("## 已完成任务（最近5项）")
         context_parts.extend(f"{i}. {todo.task} ✓" for i, todo in enumerate(completed_todos, 1))
         context_parts.append("")
 
@@ -169,7 +218,7 @@ async def _prepare_ai_messages(
     session_id: str,
     user_id: int,
     db: Session
-) -> List[dict]:
+) -> list[dict]:
     """准备发送给 AI 的消息列表。"""
     messages = db.query(Message).filter(
         Message.session_id == session_id
@@ -188,10 +237,7 @@ async def _prepare_ai_messages(
                 db=db
             )
         elif msg.tool_calls:
-            try:
-                msg_dict["tool_calls"] = json.loads(msg.tool_calls)
-            except json.JSONDecodeError:
-                logger.warning(f"Failed to parse tool_calls for message {msg.id}")
+            msg_dict["tool_calls"] = _convert_tool_calls_to_api_format(msg.tool_calls)
 
         ai_messages.append(msg_dict)
 
@@ -199,7 +245,7 @@ async def _prepare_ai_messages(
 
 
 async def _run_agent_loop(
-    ai_messages: List[dict],
+    ai_messages: list[dict],
     agent_sandbox: AgentSandbox,
     ai_service,
     session_id: str,
@@ -264,6 +310,20 @@ async def _run_agent_loop(
 
         # 执行工具调用
         for tool_call in tool_calls:
+            func = tool_call.get("function", {})
+            tool_name = func.get("name", "")
+            tool_arguments_json = func.get("arguments", "{}")
+
+            # 解析 JSON 字符串为字典（DeepSeek API 返回的是 JSON 字符串）
+            try:
+                if isinstance(tool_arguments_json, str):
+                    tool_arguments = json.loads(tool_arguments_json)
+                else:
+                    tool_arguments = tool_arguments_json
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse tool arguments JSON: {e}")
+                tool_arguments = {}
+
             _save_execution_step(
                 db=db,
                 session_id=session_id,
@@ -271,8 +331,8 @@ async def _run_agent_loop(
                 user_id=user_id,
                 iteration=iteration,
                 status=ExecutionStatus.TOOL_CALLING,
-                tool_name=tool_call["name"],
-                tool_arguments=tool_call["arguments"],
+                tool_name=tool_name,
+                tool_arguments=tool_arguments_json,  # 保存原始 JSON 字符串
                 tool_call_id=tool_call.get("id"),
                 progress=min(20 + iteration * 8, 90)
             )
@@ -285,15 +345,15 @@ async def _run_agent_loop(
                     user_id=user_id,
                     iteration=iteration,
                     status=ExecutionStatus.TOOL_EXECUTING,
-                    tool_name=tool_call["name"],
-                    tool_arguments=tool_call["arguments"],
+                    tool_name=tool_name,
+                    tool_arguments=tool_arguments_json,  # 保存原始 JSON 字符串
                     tool_call_id=tool_call.get("id"),
                     progress=min(25 + iteration * 8, 92)
                 )
 
                 result = await agent_sandbox.execute_tool(
-                    tool_call["name"],
-                    tool_call["arguments"]
+                    tool_name,
+                    tool_arguments  # 传递解析后的字典
                 )
 
                 _save_execution_step(
@@ -303,8 +363,8 @@ async def _run_agent_loop(
                     user_id=user_id,
                     iteration=iteration,
                     status=ExecutionStatus.TOOL_COMPLETED,
-                    tool_name=tool_call["name"],
-                    tool_arguments=tool_call["arguments"],
+                    tool_name=tool_name,
+                    tool_arguments=tool_arguments_json,  # 保存原始 JSON 字符串
                     tool_call_id=tool_call.get("id"),
                     tool_result=result[:1000] if result else None,
                     progress=min(30 + iteration * 8, 95)
@@ -315,10 +375,10 @@ async def _run_agent_loop(
                     "tool_call_id": tool_call.get("id", ""),
                     "content": str(result)
                 })
-                logger.info(f"Tool {tool_call['name']} executed")
+                logger.info(f"Tool {tool_name} executed")
 
             except Exception as e:
-                error_msg = f"工具 {tool_call['name']} 执行失败: {str(e)}"
+                error_msg = f"工具 {tool_name} 执行失败: {str(e)}"
                 logger.error(error_msg)
 
                 _save_execution_step(
@@ -328,8 +388,8 @@ async def _run_agent_loop(
                     user_id=user_id,
                     iteration=iteration,
                     status=ExecutionStatus.FAILED,
-                    tool_name=tool_call["name"],
-                    tool_arguments=tool_call["arguments"],
+                    tool_name=tool_name,
+                    tool_arguments=tool_arguments_json,  # 保存原始 JSON 字符串
                     tool_call_id=tool_call.get("id"),
                     tool_error=error_msg,
                     progress=min(30 + iteration * 8, 95)
@@ -357,7 +417,7 @@ async def _run_agent_loop(
 
 async def _handle_legacy_mode(
     ai_service,
-    ai_messages: List[dict],
+    ai_messages: list[dict],
     message_create: MessageCreate,
     current_user: User,
     session_id: str,
@@ -420,12 +480,12 @@ async def _modify_files_in_sandbox(
         db.add(error_msg)
 
 
-@router.get("", response_model=List[MessageResponse])
+@router.get("", response_model=list[MessageResponse])
 async def list_messages(
     session_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
-) -> List[Message]:
+) -> list[Message]:
     """获取会话中的所有消息。"""
     _verify_session_access(session_id, current_user.id, db)
 
@@ -473,15 +533,27 @@ async def create_message(
             db.commit()
             db.refresh(assistant_message)
 
-            logger.info(f"Starting agent loop for session {session_id}, message_id={assistant_message.id}")
+            logger.info(
+                f"Starting agent loop for session {session_id}, "
+                f"message_id={assistant_message.id}"
+            )
 
             assistant_response, final_reasoning, final_tool_calls = await _run_agent_loop(
-                ai_messages, agent_sandbox, ai_service, session_id, current_user.id, db, assistant_message
+                ai_messages,
+                agent_sandbox,
+                ai_service,
+                session_id,
+                current_user.id,
+                db,
+                assistant_message,
             )
 
             assistant_message.content = assistant_response or ""
             assistant_message.reasoning_content = final_reasoning
-            assistant_message.tool_calls = json.dumps(final_tool_calls) if final_tool_calls else None
+            if final_tool_calls:
+                assistant_message.tool_calls = json.dumps(final_tool_calls)
+            else:
+                assistant_message.tool_calls = None
             db.commit()
             db.refresh(assistant_message)
 
@@ -507,13 +579,13 @@ async def create_message(
     return assistant_message
 
 
-@router.get("/{message_id}/execution-steps", response_model=List[dict])
+@router.get("/{message_id}/execution-steps", response_model=list[dict])
 async def get_execution_steps(
     session_id: str,
     message_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
-) -> List[dict]:
+) -> list[dict]:
     """获取指定消息的所有执行步骤（实时进度）。"""
     _verify_session_access(session_id, current_user.id, db)
 
@@ -525,12 +597,12 @@ async def get_execution_steps(
     return [step.to_dict() for step in steps]
 
 
-@router.get("/latest/execution-steps", response_model=List[dict])
+@router.get("/latest/execution-steps", response_model=list[dict])
 async def get_latest_execution_steps(
     session_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
-) -> List[dict]:
+) -> list[dict]:
     """获取会话中最新一条消息的执行步骤（用于轮询最新进度）。"""
     _verify_session_access(session_id, current_user.id, db)
 

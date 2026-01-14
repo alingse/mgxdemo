@@ -1,6 +1,7 @@
-from typing import Any, Dict
-from app.tools.base import AgentTool
+from typing import Any
+
 from app.services import sandbox_service
+from app.tools.base import AgentTool
 
 
 class ListTool(AgentTool):
@@ -19,7 +20,7 @@ class ListTool(AgentTool):
         return "列出沙箱中的所有文件。无需参数。"
 
     @property
-    def parameters(self) -> Dict[str, Any]:
+    def parameters(self) -> dict[str, Any]:
         return {
             "type": "object",
             "properties": {},

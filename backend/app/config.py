@@ -1,13 +1,13 @@
-from pydantic_settings import BaseSettings
 from functools import lru_cache
-from typing import Optional
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     """Application settings."""
 
     # AI Service Configuration（仅支持 DeepSeek）
-    deepseek_api_key: Optional[str] = None
+    deepseek_api_key: str | None = None
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"
 
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
         case_sensitive = False
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
     return Settings()

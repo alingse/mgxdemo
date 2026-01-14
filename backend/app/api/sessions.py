@@ -1,17 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
+
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.orm import Session
-from typing import List
-from app.database import get_db
-from app.schemas.session import SessionCreate, SessionResponse, SessionDetail, SessionUpdate
-from app.models.user import User
-from app.models.session import Session as SessionModel
+
 from app.core.deps import get_current_user
+from app.database import get_db
+from app.models.session import Session as SessionModel
+from app.models.user import User
+from app.schemas.session import SessionCreate, SessionDetail, SessionResponse, SessionUpdate
 from app.services.sandbox_service import get_sandbox_service
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
 
-@router.get("", response_model=List[SessionResponse])
+@router.get("", response_model=list[SessionResponse])
 async def list_sessions(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)

@@ -346,7 +346,6 @@ async function initApp() {
             }
         } catch (error) {
             console.error('加载会话失败:', error);
-            alert('会话不存在或无权访问');
             window.location.href = '/';
         }
     } else {

@@ -1,8 +1,9 @@
 """CheckTool 测试用例"""
-import pytest
-from pathlib import Path
-import tempfile
 import shutil
+import tempfile
+from pathlib import Path
+
+import pytest
 
 from app.tools.check_tool import CheckTool
 

@@ -1,8 +1,12 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
-from app.database import Base
 import enum
+import json
+from typing import Any
+
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
+from app.database import Base
 
 
 class MessageRole(str, enum.Enum):
@@ -27,6 +31,16 @@ class Message(Base):
 
     # Relationships
     session = relationship("Session", back_populates="messages")
+
+    @property
+    def tool_calls_parsed(self) -> list[dict[str, Any]] | None:
+        """自动解析 tool_calls JSON 字符串为列表。"""
+        if not self.tool_calls:
+            return None
+        try:
+            return json.loads(self.tool_calls)
+        except (json.JSONDecodeError, TypeError):
+            return None
 
     def __repr__(self):
         return f"<Message(id={self.id}, role='{self.role}', content_length={len(self.content)})>"

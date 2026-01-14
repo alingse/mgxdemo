@@ -1,13 +1,15 @@
+import os
+
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from app.database import init_db
-from app.api import auth, sessions, messages, sandbox
+from fastapi.staticfiles import StaticFiles
+
+from app.api import auth, messages, sandbox, sessions
 from app.config import get_settings
+from app.database import init_db
+
 # 导入所有模型以确保 SQLAlchemy 创建表
-from app.models import user, session as session_model, message, todo, agent_execution
-import os
 
 settings = get_settings()
 

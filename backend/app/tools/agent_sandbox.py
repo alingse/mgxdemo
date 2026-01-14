@@ -1,14 +1,15 @@
-from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
+
 from sqlalchemy.orm import Session
+
+from app.services.sandbox_service import get_sandbox_path
 from app.tools.base import AgentTool
 from app.tools.bash_tool import BashTool
+from app.tools.check_tool import CheckTool
 from app.tools.list_tool import ListTool
 from app.tools.read_tool import ReadTool
-from app.tools.write_tool import WriteTool
 from app.tools.todo_tool import TodoTool
-from app.tools.check_tool import CheckTool
-from app.services.sandbox_service import get_sandbox_path
+from app.tools.write_tool import WriteTool
 
 
 class AgentSandbox:
@@ -21,7 +22,7 @@ class AgentSandbox:
         self.session_path = get_sandbox_path(user_id, session_id)
         self.tools = self._init_tools()
 
-    def _init_tools(self) -> Dict[str, AgentTool]:
+    def _init_tools(self) -> dict[str, AgentTool]:
         """初始化所有可用工具"""
         return {
             "bash": BashTool(self.session_path),
@@ -32,11 +33,11 @@ class AgentSandbox:
             "check": CheckTool(self.session_path)
         }
 
-    def get_tools_schema(self) -> List[Dict[str, Any]]:
+    def get_tools_schema(self) -> list[dict[str, Any]]:
         """获取所有工具的OpenAI格式定义"""
         return [tool.to_openai_tool() for tool in self.tools.values()]
 
-    async def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> str:
+    async def execute_tool(self, tool_name: str, arguments: dict[str, Any]) -> str:
         """执行指定的工具
 
         Args:

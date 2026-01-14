@@ -38,7 +38,12 @@
     <aside id="landingSidebar" class="landing-sidebar hidden">
         <div class="sidebar-header">
             <h2>我的项目</h2>
-            <button id="newSessionBtn" class="btn-icon" title="新建项目">+</button>
+            <button id="newSessionBtn" class="btn-icon" title="新建项目" aria-label="新建项目">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </button>
         </div>
         <div id="sessionsList" class="sessions-list">
             <!-- 会话列表 -->
@@ -100,7 +105,12 @@
     <div id="authModal" class="auth-modal hidden">
         <div class="modal-overlay" id="modalOverlay"></div>
         <div class="modal-content">
-            <button class="modal-close" id="modalClose">&times;</button>
+            <button class="modal-close" id="modalClose" aria-label="关闭">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
 
             <div class="auth-tabs">
                 <button class="auth-tab active" data-tab="login">登录</button>

@@ -1,7 +1,7 @@
-import subprocess
 import logging
+import subprocess
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from app.tools.base import AgentTool
 
@@ -76,7 +76,7 @@ class CheckTool(AgentTool):
 """
 
     @property
-    def parameters(self) -> Dict[str, Any]:
+    def parameters(self) -> dict[str, Any]:
         return {
             "type": "object",
             "properties": {
@@ -93,7 +93,7 @@ class CheckTool(AgentTool):
             "required": ["type"]
         }
 
-    def _get_tools_available(self) -> Dict[str, bool]:
+    def _get_tools_available(self) -> dict[str, bool]:
         """获取可用工具状态（延迟初始化）。"""
         if self._tools_available is None:
             self._tools_available = {
@@ -115,7 +115,7 @@ class CheckTool(AgentTool):
 
         return await self._run_check(type, filename)
 
-    async def _check_all(self, filename: str, tools_available: Dict[str, bool]) -> str:
+    async def _check_all(self, filename: str, tools_available: dict[str, bool]) -> str:
         """检查所有文件类型。"""
         results = []
         default_files = {
