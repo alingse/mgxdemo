@@ -97,10 +97,12 @@ GET /api/sessions/{session_id}/messages/{message_id}/execution-steps
 ### 2. 获取最新消息的执行步骤（推荐）
 
 ```
-GET /api/sessions/{session_id}/messages/latest/execution-steps
+GET /api/sessions/{session_id}/messages/_internal/latest/execution-steps
 ```
 
 这个端点自动查找最新的助手消息并返回其执行步骤，**推荐用于轮询**。
+
+> **注意**：使用 `/_internal/` 前缀避免与 `/{message_id}/execution-steps` 路由冲突。
 
 ## 前端集成示例
 
@@ -163,7 +165,7 @@ class ExecutionProgressTracker {
   // 获取最新的执行步骤
   async fetchLatestSteps() {
     const response = await fetch(
-      `/api/sessions/${this.sessionId}/messages/latest/execution-steps`,
+      `/api/sessions/${this.sessionId}/messages/_internal/latest/execution-steps`,
       {
         headers: {
           'Authorization': `Bearer ${this.token}`,
@@ -403,7 +405,7 @@ function useExecutionProgress(sessionId, token, enabled = true) {
   const fetchSteps = useCallback(async () => {
     try {
       const response = await fetch(
-        `/api/sessions/${sessionId}/messages/latest/execution-steps`,
+        `/api/sessions/${sessionId}/messages/_internal/latest/execution-steps`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -522,7 +524,7 @@ function ExecutionProgress({ sessionId, token }) {
    - THINKING (第2轮, progress=35%)
    - COMPLETED (progress=100%)
    ↓
-5. 前端轮询 /api/sessions/{id}/messages/latest/execution-steps
+5. 前端轮询 /api/sessions/{id}/messages/_internal/latest/execution-steps
    ↓
 6. 前端收到步骤更新，显示进度
    ↓

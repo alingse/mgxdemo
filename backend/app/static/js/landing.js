@@ -70,12 +70,13 @@ function updateHeaderUI() {
         unauthActions.classList.add('hidden');
         authActions.classList.remove('hidden');
         userInfo.textContent = currentUser.username;
-        sidebarToggle.classList.remove('hidden');
+        // 登录后显示 sidebar header（但不展开）
+        landingSidebar.classList.remove('hidden');
     } else {
         // 未登录
         unauthActions.classList.remove('hidden');
         authActions.classList.add('hidden');
-        sidebarToggle.classList.add('hidden');
+        landingSidebar.classList.add('hidden');
     }
 }
 
@@ -137,8 +138,19 @@ function formatTime(dateString) {
 
 // 侧边栏切换
 function toggleSidebar() {
-    landingSidebar.classList.remove('hidden');
     landingSidebar.classList.toggle('open');
+    // 更新按钮图标方向
+    const toggleBtn = document.getElementById('sidebarToggle');
+    if (toggleBtn) {
+        const svg = toggleBtn.querySelector('svg');
+        if (landingSidebar.classList.contains('open')) {
+            // 展开状态：显示收起图标（向左箭头）
+            svg.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="15" y1="3" x2="15" y2="21"></line>';
+        } else {
+            // 收起状态：显示展开图标（向右箭头）
+            svg.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line>';
+        }
+    }
 }
 
 // 新建会话（从首页）

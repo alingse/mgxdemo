@@ -42,6 +42,7 @@ class MessageResponse(MessageBase):
     role: str
     reasoning_content: str | None = None  # AI 思考内容
     tool_calls: list[dict] | None = None   # 工具调用记录（自动从数据库 JSON 字符串解析）
+    tool_call_id: str | None = None  # TOOL 角色消息的 tool_call_id
     created_at: datetime
 
     @field_validator('tool_calls', mode='before')

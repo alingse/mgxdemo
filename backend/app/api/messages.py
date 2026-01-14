@@ -230,17 +230,23 @@ async def _prepare_ai_messages(
         msg_dict = {"role": msg.role.value, "content": msg.content}
 
         if msg.role == MessageRole.USER:
+            # 用户消息：添加上下文信息
             msg_dict["content"] = await _build_contextual_user_prompt(
                 session_id=session_id,
                 user_id=user_id,
                 user_message=msg.content,
                 db=db
             )
-        elif msg.tool_calls:
-            # DeepSeek API 要求：包含 tool_calls 的消息必须同时包含 reasoning_content
+        elif msg.role == MessageRole.ASSISTANT and msg.tool_calls:
+            # Assistant 消息有 tool_calls 时，必须添加 reasoning_content
             msg_dict["tool_calls"] = _convert_tool_calls_to_api_format(msg.tool_calls)
-            # 如果数据库中有 reasoning_content，则添加；否则设为空字符串
+            # DeepSeek API 要求：包含 tool_calls 的消息必须同时包含 reasoning_content
             msg_dict["reasoning_content"] = msg.reasoning_content or ""
+        elif msg.role == MessageRole.TOOL:
+            # TOOL 消息：需要添加 tool_call_id
+            msg_dict["tool_call_id"] = msg.tool_call_id or ""
+            # TOOL 消息不需要 content 字段（但 API 仍然接受）
+        # SYSTEM 消息不需要特殊处理
 
         ai_messages.append(msg_dict)
 
@@ -399,6 +405,15 @@ async def _run_agent_loop(
                     progress=min(30 + iteration * 8, 95)
                 )
 
+                # 保存 TOOL 消息到数据库
+                tool_message = Message(
+                    session_id=session_id,
+                    role=MessageRole.TOOL,
+                    content=str(result),
+                    tool_call_id=tool_call.get("id", "")
+                )
+                db.add(tool_message)
+
                 ai_messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.get("id", ""),
@@ -423,6 +438,15 @@ async def _run_agent_loop(
                     tool_error=error_msg,
                     progress=min(30 + iteration * 8, 95)
                 )
+
+                # 保存 TOOL 错误消息到数据库
+                tool_message = Message(
+                    session_id=session_id,
+                    role=MessageRole.TOOL,
+                    content=error_msg,
+                    tool_call_id=tool_call.get("id", "")
+                )
+                db.add(tool_message)
 
                 ai_messages.append({
                     "role": "tool",
@@ -608,13 +632,16 @@ async def create_message(
     return assistant_message
 
 
-@router.get("/latest/execution-steps", response_model=list[dict])
+@router.get("/_internal/latest/execution-steps", response_model=list[dict])
 async def get_latest_execution_steps(
     session_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> list[dict]:
-    """获取会话中最新一条消息的执行步骤（用于轮询最新进度）。"""
+    """获取会话中最新一条消息的执行步骤（用于轮询最新进度）。
+
+    使用 /_internal/ 前缀避免与 /{message_id}/execution-steps 路由冲突。
+    """
     _verify_session_access(session_id, current_user.id, db)
 
     latest_message = db.query(Message).filter(
@@ -628,6 +655,24 @@ async def get_latest_execution_steps(
     steps = db.query(AgentExecutionStep).filter(
         AgentExecutionStep.session_id == session_id,
         AgentExecutionStep.message_id == latest_message.id
+    ).order_by(AgentExecutionStep.created_at.asc()).all()
+
+    return [step.to_dict() for step in steps]
+
+
+@router.get("/{message_id}/execution-steps", response_model=list[dict])
+async def get_execution_steps(
+    session_id: str,
+    message_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> list[dict]:
+    """获取指定消息的所有执行步骤（实时进度）。"""
+    _verify_session_access(session_id, current_user.id, db)
+
+    steps = db.query(AgentExecutionStep).filter(
+        AgentExecutionStep.session_id == session_id,
+        AgentExecutionStep.message_id == message_id
     ).order_by(AgentExecutionStep.created_at.asc()).all()
 
     return [step.to_dict() for step in steps]

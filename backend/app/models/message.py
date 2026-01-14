@@ -28,6 +28,7 @@ class Message(Base):
     content = Column(Text, nullable=False)
     reasoning_content = Column(Text, nullable=True)  # DeepSeek 思考模式内容
     tool_calls = Column(Text, nullable=True)  # 工具调用记录（JSON 字符串）
+    tool_call_id = Column(String, nullable=True)  # TOOL 角色消息：关联到 assistant 的 tool_call id
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     # Relationships

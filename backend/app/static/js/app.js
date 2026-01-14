@@ -17,6 +17,7 @@ const elements = {
     logoutBtn: document.getElementById('logoutBtn'),
     refreshPreviewBtn: document.getElementById('refreshPreviewBtn'),
     showSessionsBtn: document.getElementById('showSessionsBtn'),
+    hideSessionsBtn: document.getElementById('hideSessionsBtn'),
     newSessionInlineBtn: document.getElementById('newSessionInlineBtn'),
     currentSessionTitle: document.getElementById('currentSessionTitle')
 };
@@ -318,17 +319,29 @@ const ui = {
 
     toggleSidebar() {
         sidebarVisible = !sidebarVisible;
-        elements.sessionSidebar.classList.toggle('hidden', !sidebarVisible);
+        elements.sessionSidebar.classList.toggle('open', sidebarVisible);
+        // 更新按钮图标方向
+        const toggleBtn = elements.hideSessionsBtn;
+        if (toggleBtn) {
+            const svg = toggleBtn.querySelector('svg');
+            if (sidebarVisible) {
+                // 展开状态：显示收起图标（向左箭头）
+                svg.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="15" y1="3" x2="15" y2="21"></line>';
+            } else {
+                // 收起状态：显示展开图标（向右箭头）
+                svg.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line>';
+            }
+        }
     },
 
     showSidebar() {
         sidebarVisible = true;
-        elements.sessionSidebar.classList.remove('hidden');
+        elements.sessionSidebar.classList.add('open');
     },
 
     hideSidebar() {
         sidebarVisible = false;
-        elements.sessionSidebar.classList.add('hidden');
+        elements.sessionSidebar.classList.remove('open');
     },
 
     updatePreview() {
@@ -468,7 +481,10 @@ function renderMessages(messages) {
         return;
     }
 
-    messages.forEach(message => {
+    // 过滤掉 TOOL 消息（工具响应不需要在聊天界面显示）
+    const visibleMessages = messages.filter(m => m.role !== 'tool');
+
+    visibleMessages.forEach(message => {
         const div = document.createElement('div');
         div.className = `message message-${message.role}`;
 
@@ -669,7 +685,8 @@ function setupEventListeners() {
     elements.messageForm.addEventListener('submit', sendMessage);
     elements.logoutBtn.addEventListener('click', handleLogout);
     elements.refreshPreviewBtn.addEventListener('click', ui.refreshPreview);
-    elements.showSessionsBtn.addEventListener('click', ui.showSidebar);
+    elements.showSessionsBtn.addEventListener('click', ui.toggleSidebar);
+    elements.hideSessionsBtn.addEventListener('click', ui.toggleSidebar);
     elements.newSessionInlineBtn.addEventListener('click', createNewSession);
 
     elements.messageInput.addEventListener('keypress', (e) => {

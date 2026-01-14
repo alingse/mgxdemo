@@ -99,9 +99,11 @@ _save_execution_step(status=ExecutionStatus.COMPLETED, progress=100.0)
 
 2. **获取最新消息的执行步骤**（推荐用于轮询）
    ```
-   GET /api/sessions/{session_id}/messages/latest/execution-steps
+   GET /api/sessions/{session_id}/messages/_internal/latest/execution-steps
    ```
    自动查找最新的助手消息并返回其执行步骤。
+
+   > **注意**：使用 `/_internal/` 前缀避免与 `/{message_id}/execution-steps` 路由冲突。
 
 ### 3. 前端集成层
 
@@ -117,7 +119,7 @@ class ExecutionProgressTracker {
   async startPolling(callback, intervalMs = 1000) {
     const poll = async () => {
       const response = await fetch(
-        `/api/sessions/${this.sessionId}/messages/latest/execution-steps`,
+        `/api/sessions/${this.sessionId}/messages/_internal/latest/execution-steps`,
         { headers: { 'Authorization': `Bearer ${this.token}` } }
       );
       const steps = await response.json();
@@ -178,7 +180,7 @@ class ExecutionProgressTracker {
    - THINKING (第2轮, progress=35%)
    - COMPLETED (progress=100%)
    ↓
-5. 前端轮询 /api/sessions/{id}/messages/latest/execution-steps
+5. 前端轮询 /api/sessions/{id}/messages/_internal/latest/execution-steps
    ↓
 6. 前端收到步骤更新，显示进度
    - 更新进度条
@@ -237,7 +239,7 @@ curl -X POST "http://localhost:8000/api/sessions/{session_id}/messages" \
 ### 3. 轮询执行进度
 
 ```bash
-curl "http://localhost:8000/api/sessions/{session_id}/messages/latest/execution-steps" \
+curl "http://localhost:8000/api/sessions/{session_id}/messages/_internal/latest/execution-steps" \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 

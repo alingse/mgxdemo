@@ -130,42 +130,6 @@ body {
     font-weight: 500;
 }
 
-/* Sidebar Toggle */
-.sidebar-toggle {
-    position: fixed;
-    left: var(--space-lg);
-    top: 120px;
-    background: var(--surface);
-    color: var(--text-secondary);
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border-radius: var(--radius-xl);
-    z-index: 100;
-    transition: all var(--duration-normal) cubic-bezier(0.4, 0, 0.2, 1);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-sm);
-}
-
-.sidebar-toggle:hover {
-    background: var(--input-bg-hover);
-    border-color: var(--border-dark);
-    color: var(--text);
-    box-shadow: var(--shadow-md);
-    transform: translateX(2px);
-}
-
-.sidebar-toggle svg {
-    transition: transform var(--duration-normal) ease;
-}
-
-.sidebar-toggle:hover svg {
-    transform: translateX(2px);
-}
-
 /* Landing Sidebar */
 .landing-sidebar {
     position: fixed;
@@ -173,17 +137,33 @@ body {
     top: 61px; /* header height */
     height: calc(100vh - 61px);
     width: 280px;
+    max-width: 280px;
     background: var(--surface);
     border-right: 1px solid var(--border);
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
+    overflow: hidden;
+    transition: max-width 0.3s ease;
     z-index: 99;
     display: flex;
     flex-direction: column;
 }
 
+.landing-sidebar.hidden {
+    display: none;
+}
+
 .landing-sidebar.open {
-    transform: translateX(0);
+    max-width: 280px;
+}
+
+.landing-sidebar:not(.open) {
+    max-width: 60px; /* 收起时只显示按钮 */
+}
+
+.landing-sidebar:not(.open) .sidebar-header h2,
+.landing-sidebar:not(.open) .sidebar-header .btn-icon:not(.sidebar-toggle-btn),
+.landing-sidebar:not(.open) .sessions-list {
+    opacity: 0;
+    pointer-events: none;
 }
 
 .sidebar-header {
@@ -192,12 +172,29 @@ body {
     align-items: center;
     padding: 15px;
     border-bottom: 1px solid var(--border);
+    gap: var(--space-sm);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .sidebar-header h2 {
+    flex: 1;
+    text-align: center;
     margin: 0;
     font-size: 18px;
     font-weight: 600;
+    transition: opacity 0.3s ease;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.sidebar-header .btn-icon {
+    transition: opacity 0.3s ease;
+    flex-shrink: 0;
+}
+
+.sidebar-toggle-btn {
+    flex-shrink: 0;
 }
 
 /* btn-icon styles moved to BUTTONS section */
@@ -696,21 +693,25 @@ body {
 
 /* Session Sidebar */
 .session-sidebar {
-    width: 25%;
+    width: 0;
+    min-width: 0;
     background: var(--surface);
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    transition: transform 0.3s ease;
+    transition: width 0.3s ease;
     z-index: 10;
-    position: absolute;
+    position: relative;
     height: 100%;
-    left: 0;
-    top: 0;
+    overflow: hidden;
 }
 
 .session-sidebar.hidden {
-    transform: translateX(-100%);
+    display: none;
+}
+
+.session-sidebar.open {
+    width: 280px;
 }
 
 .session-sidebar-header {
@@ -719,12 +720,24 @@ body {
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid var(--border);
+    gap: var(--space-sm);
+    width: 280px;
+    box-sizing: border-box;
+    flex-shrink: 0;
 }
 
 .session-sidebar-header h2 {
+    flex: 1;
+    text-align: center;
+    margin: 0;
     font-size: 16px;
     font-weight: 600;
-    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.session-sidebar-header .btn-icon {
+    flex-shrink: 0;
 }
 
 /* Chat Area */
@@ -741,13 +754,7 @@ body {
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
-    gap: 15px;
     background: var(--surface);
-}
-
-.chat-header-buttons {
-    display: flex;
-    gap: 4px;
 }
 
 .current-session-title {

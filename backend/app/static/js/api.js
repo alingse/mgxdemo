@@ -148,7 +148,7 @@ class ApiClient {
 
     // Execution Progress APIs
     async getLatestExecutionSteps(sessionId) {
-        return this.request(`/api/sessions/${sessionId}/messages/latest/execution-steps`);
+        return this.request(`/api/sessions/${sessionId}/messages/_internal/latest/execution-steps`);
     }
 
     async getExecutionSteps(sessionId, messageId) {
