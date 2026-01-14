@@ -460,7 +460,7 @@ async function loadMessages() {
     }
 }
 
-function renderMessages(messages) {
+async function renderMessages(messages) {
     elements.messagesContainer.textContent = '';
 
     if (messages.length === 0) {
@@ -471,7 +471,8 @@ function renderMessages(messages) {
     // 过滤掉 TOOL 消息（工具响应不需要在聊天界面显示）
     const visibleMessages = messages.filter(m => m.role !== 'tool');
 
-    visibleMessages.forEach(message => {
+    // 改为 for...of 循环以支持 await
+    for (const message of visibleMessages) {
         const div = document.createElement('div');
         div.className = `message message-${message.role}`;
 
@@ -492,12 +493,25 @@ function renderMessages(messages) {
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
 
-        // 显示思考内容
+        // === 新增：加载并显示执行步骤 ===
+        if (message.role === 'assistant') {
+            try {
+                const steps = await api.getExecutionSteps(currentSession.id, message.id);
+                if (steps && steps.length > 0) {
+                    // 显示执行步骤
+                    _renderExecutionSteps(contentDiv, steps);
+                }
+            } catch (error) {
+                console.error('Failed to load execution steps:', error);
+            }
+        }
+
+        // 显示思考内容（从 message.reasoning_content）
         if (message.reasoning_content) {
             const reasoningDiv = document.createElement('div');
             reasoningDiv.className = 'message-reasoning';
             reasoningDiv.innerHTML = `
-                <details>
+                <details open>
                     <summary>🤔 思考过程</summary>
                     <pre>${utils.escapeHtml(message.reasoning_content)}</pre>
                 </details>
@@ -505,21 +519,28 @@ function renderMessages(messages) {
             contentDiv.appendChild(reasoningDiv);
         }
 
-        // 显示工具调用
+        // 显示工具调用（从 message.tool_calls）
         if (message.tool_calls && message.tool_calls.length > 0) {
             const toolsDiv = document.createElement('div');
             toolsDiv.className = 'message-tools';
-            const toolsHtml = `
-                <details><summary>🔧 工具调用</summary><ul>
-                ${message.tool_calls.map(tool => `
-                    <li>
-                        <strong>${utils.escapeHtml(tool.name)}</strong>
-                        <pre>${utils.escapeHtml(JSON.stringify(tool.arguments, null, 2))}</pre>
-                    </li>
-                `).join('')}
-                </ul></details>
+            toolsDiv.innerHTML = `
+                <details open>
+                    <summary>🔧 工具调用 (${message.tool_calls.length}个)</summary>
+                    <ul>
+                    ${message.tool_calls.map(tool => `
+                        <li>
+                            <strong>${utils.escapeHtml(tool.function?.name || tool.name)}</strong>
+                            <pre>${utils.escapeHtml(JSON.stringify(
+                                typeof tool.function?.arguments === 'string'
+                                    ? JSON.parse(tool.function.arguments)
+                                    : tool.function?.arguments || tool.arguments,
+                                null, 2
+                            ))}</pre>
+                        </li>
+                    `).join('')}
+                    </ul>
+                </details>
             `;
-            toolsDiv.innerHTML = toolsHtml;
             contentDiv.appendChild(toolsDiv);
         }
 
@@ -543,7 +564,7 @@ function renderMessages(messages) {
         div.appendChild(avatarDiv);
         div.appendChild(contentDiv);
         elements.messagesContainer.appendChild(div);
-    });
+    }
 
     elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
 }
@@ -666,12 +687,18 @@ function _showReasoning(container, content) {
         reasoningDiv.className = 'message-reasoning';
         container.insertBefore(reasoningDiv, container.firstChild);
     }
-    reasoningDiv.innerHTML = `
-        <details open>
-            <summary>🤔 思考过程</summary>
-            <pre>${utils.escapeHtml(content)}</pre>
-        </details>
-    `;
+    // 使用 append 而不是覆盖，以显示完整的思考过程
+    const contentDiv = reasoningDiv.querySelector('.reasoning-content');
+    if (contentDiv) {
+        contentDiv.textContent += content;
+    } else {
+        reasoningDiv.innerHTML = `
+            <details open>
+                <summary>🤔 思考过程</summary>
+                <pre class="reasoning-content">${utils.escapeHtml(content)}</pre>
+            </details>
+        `;
+    }
 }
 
 // 辅助函数：显示工具调用

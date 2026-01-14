@@ -249,6 +249,10 @@ body {
     align-items: center;
     padding: 20px;
     padding-top: 81px; /* Account for fixed header */
+    background:
+        radial-gradient(ellipse at 20% 20%, rgba(59, 130, 246, 0.03) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.03) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(251, 146, 60, 0.02) 0%, transparent 60%);
 }
 
 .hero-container {
@@ -278,49 +282,6 @@ body {
     margin-bottom: 40px;
 }
 
-.main-input {
-    width: 100%;
-    padding: 28px 32px;
-    font-size: 20px;
-    border: 2px solid var(--border);
-    border-radius: 12px;
-    background: var(--input-bg);
-    color: var(--text);
-    transition: all 0.3s;
-    cursor: pointer;
-    font-weight: 300;
-}
-
-.main-input:hover {
-    border-color: var(--text-tertiary);
-    background: var(--input-bg-focus);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-}
-
-.main-input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    background: var(--input-bg-focus);
-}
-
-.placeholder-text {
-    position: absolute;
-    left: 32px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-tertiary);
-    font-size: 20px;
-    pointer-events: none;
-    transition: all 0.3s;
-    font-weight: 300;
-}
-
-.main-input:focus + .placeholder-text,
-.main-input:not(:placeholder-shown) + .placeholder-text {
-    opacity: 0;
-}
-
 .examples {
     display: flex;
     flex-wrap: wrap;
@@ -341,12 +302,52 @@ body {
     font-weight: 500;
 }
 
+/* 第一个标签 - 蓝色系 */
+.example-tag:nth-child(1) {
+    border-color: rgba(59, 130, 246, 0.3);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(147, 197, 253, 0.05));
+}
+.example-tag:nth-child(1):hover {
+    border-color: rgba(59, 130, 246, 0.6);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(147, 197, 253, 0.1));
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.25);
+}
+
+/* 第二个标签 - 橙色系 */
+.example-tag:nth-child(2) {
+    border-color: rgba(251, 146, 60, 0.3);
+    background: linear-gradient(135deg, rgba(251, 146, 60, 0.05), rgba(253, 186, 116, 0.05));
+}
+.example-tag:nth-child(2):hover {
+    border-color: rgba(251, 146, 60, 0.6);
+    background: linear-gradient(135deg, rgba(251, 146, 60, 0.15), rgba(253, 186, 116, 0.1));
+    box-shadow: 0 4px 16px rgba(251, 146, 60, 0.25);
+}
+
+/* 第三个标签 - 紫色系 */
+.example-tag:nth-child(3) {
+    border-color: rgba(139, 92, 246, 0.3);
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(167, 139, 250, 0.05));
+}
+.example-tag:nth-child(3):hover {
+    border-color: rgba(139, 92, 246, 0.6);
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(167, 139, 250, 0.1));
+    box-shadow: 0 4px 16px rgba(139, 92, 246, 0.25);
+}
+
+/* 第四个标签 - 青色系 */
+.example-tag:nth-child(4) {
+    border-color: rgba(20, 184, 166, 0.3);
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.05), rgba(94, 234, 212, 0.05));
+}
+.example-tag:nth-child(4):hover {
+    border-color: rgba(20, 184, 166, 0.6);
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.15), rgba(94, 234, 212, 0.1));
+    box-shadow: 0 4px 16px rgba(20, 184, 166, 0.25);
+}
+
 .example-tag:hover {
-    border-color: var(--border-dark);
-    background: var(--input-bg-hover);
     transform: translateY(-2px);
-    color: var(--text);
-    box-shadow: var(--shadow-sm);
 }
 
 .example-tag:active {
@@ -370,8 +371,44 @@ body {
 .feature-icon {
     font-size: 40px;
     margin-bottom: 16px;
-    filter: grayscale(100%);
-    opacity: 0.5;
+    position: relative;
+    display: inline-block;
+}
+
+/* 画板图标 - 彩虹渐变效果 */
+.feature:nth-child(1) .feature-icon {
+    filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.5));
+    animation: colorShift1 8s ease-in-out infinite alternate;
+}
+
+@keyframes colorShift1 {
+    0% { filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.6)) hue-rotate(0deg); }
+    25% { filter: drop-shadow(0 0 16px rgba(168, 85, 247, 0.7)) hue-rotate(10deg); }
+    50% { filter: drop-shadow(0 0 12px rgba(236, 72, 153, 0.6)) hue-rotate(20deg); }
+    75% { filter: drop-shadow(0 0 16px rgba(251, 146, 60, 0.7)) hue-rotate(10deg); }
+    100% { filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.6)) hue-rotate(0deg); }
+}
+
+/* 闪电图标 - 金橙色光晕 */
+.feature:nth-child(2) .feature-icon {
+    filter: drop-shadow(0 0 16px rgba(251, 191, 36, 0.7));
+    animation: electricPulse 2s ease-in-out infinite;
+}
+
+@keyframes electricPulse {
+    0%, 100% { filter: drop-shadow(0 0 16px rgba(251, 191, 36, 0.7)); }
+    50% { filter: drop-shadow(0 0 24px rgba(250, 204, 21, 1)) drop-shadow(0 0 8px rgba(251, 146, 60, 0.8)); }
+}
+
+/* 智能/AI 图标 - 紫蓝渐变 */
+.feature:nth-child(3) .feature-icon {
+    filter: drop-shadow(0 0 14px rgba(139, 92, 246, 0.6));
+    animation: auraGlow 4s ease-in-out infinite alternate;
+}
+
+@keyframes auraGlow {
+    0% { filter: drop-shadow(0 0 14px rgba(139, 92, 246, 0.6)); }
+    100% { filter: drop-shadow(0 0 20px rgba(99, 102, 241, 0.8)) drop-shadow(0 0 8px rgba(168, 85, 247, 0.5)); }
 }
 
 .feature-title {
@@ -491,7 +528,7 @@ body {
 }
 
 /* ========================================
-   BUTTONS
+   BUTTONS - 极简奢华设计
    ======================================== */
 
 /* Base Button */
@@ -500,35 +537,208 @@ body {
     align-items: center;
     justify-content: center;
     gap: var(--space-sm);
-    padding: 14px var(--space-xl);
+    padding: 11px var(--space-xl);
     border: none;
-    border-radius: var(--radius-lg);
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
     cursor: pointer;
     transition: all var(--duration-normal) cubic-bezier(0.4, 0, 0.2, 1);
     white-space: nowrap;
     user-select: none;
+    position: relative;
+    overflow: hidden;
 }
 
-/* Primary Button */
-.btn-primary {
-    background: var(--primary-color);
+/* 按钮悬停光泽效果 */
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.1),
+        transparent
+    );
+    transition: left 0.6s ease;
+}
+
+.btn:hover::before {
+    left: 100%;
+}
+
+/* ========================================
+   HEADER 按钮样式
+   ======================================== */
+
+/* Header 登录按钮 - 幽灵轮廓风格 */
+.header-actions-unauth .btn-secondary {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1.25px solid var(--border);
+    padding: 9px 18px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all var(--duration-fast) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.header-actions-unauth .btn-secondary:hover {
+    color: var(--text);
+    border-color: var(--border-dark);
+    background: var(--surface);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Header 注册按钮 - 微妙渐变强调 */
+.header-actions-unauth .btn-primary {
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
     color: var(--background);
-    box-shadow: var(--shadow-sm);
+    border: 1.25px solid transparent;
+    padding: 9px 18px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(10, 10, 10, 0.15);
+    transition: all var(--duration-fast) cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+/* 微妙的彩色光晕 */
+.header-actions-unauth .btn-primary::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 8px;
+    padding: 1px;
+    background: linear-gradient(135deg,
+        rgba(59, 130, 246, 0.3),
+        rgba(139, 92, 246, 0.2),
+        rgba(236, 72, 153, 0.1)
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity var(--duration-normal) ease;
+}
+
+.header-actions-unauth .btn-primary:hover::after {
+    opacity: 1;
+}
+
+.header-actions-unauth .btn-primary:hover {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    box-shadow: 0 4px 16px rgba(10, 10, 10, 0.2),
+                0 0 0 1px rgba(59, 130, 246, 0.1);
+    transform: translateY(-1px);
+}
+
+/* Header 登出按钮 - 极简边框风格 */
+.header-actions-auth .btn-secondary,
+.header .header-actions .btn-secondary {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 400;
+    border-radius: 6px;
+    transition: all var(--duration-fast) ease;
+}
+
+.header-actions-auth .btn-secondary:hover,
+.header .header-actions .btn-secondary:hover {
+    color: var(--error);
+    border-color: rgba(220, 38, 38, 0.3);
+    background: rgba(220, 38, 38, 0.06);
+}
+
+/* 用户名显示 */
+.header-actions-auth span,
+.header .header-actions span {
+    margin-right: 8px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* ========================================
+   模态框按钮样式
+   ======================================== */
+
+/* Modal 主要按钮 - 全宽，强调 */
+.modal-content .btn-primary {
+    width: 100%;
+    padding: 13px 24px;
+    font-size: 15px;
+    font-weight: 500;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+    color: var(--background);
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(10, 10, 10, 0.12);
+    transition: all var(--duration-normal) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-content .btn-primary::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    padding: 1px;
+    background: linear-gradient(135deg,
+        rgba(59, 130, 246, 0.4),
+        rgba(139, 92, 246, 0.3)
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity var(--duration-normal) ease;
+}
+
+.modal-content .btn-primary:hover::after {
+    opacity: 1;
+}
+
+.modal-content .btn-primary:hover {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    box-shadow: 0 4px 20px rgba(10, 10, 10, 0.18),
+                0 0 0 1px rgba(59, 130, 246, 0.15);
+    transform: translateY(-1px);
+}
+
+.modal-content .btn-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(10, 10, 10, 0.12);
+}
+
+/* ========================================
+   通用 Primary Button (用于其他页面)
+   ======================================== */
+
+.btn-primary {
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+    color: var(--background);
+    box-shadow: 0 2px 8px rgba(10, 10, 10, 0.12);
 }
 
 .btn-primary:hover:not(:disabled) {
-    background: var(--primary-hover);
-    box-shadow: var(--shadow-md);
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    box-shadow: 0 4px 16px rgba(10, 10, 10, 0.18);
     transform: translateY(-1px);
 }
 
 .btn-primary:active:not(:disabled) {
-    background: var(--primary-light);
+    background: #1a1a1a;
     transform: translateY(0);
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 2px 8px rgba(10, 10, 10, 0.12);
 }
 
 .btn-primary:disabled {
@@ -544,7 +754,10 @@ body {
     box-shadow: none;
 }
 
-/* Secondary Button */
+/* ========================================
+   通用 Secondary Button
+   ======================================== */
+
 .btn-secondary {
     background: var(--surface);
     color: var(--text);
@@ -664,8 +877,8 @@ body {
     font-size: 20px;
     font-weight: 700;
     letter-spacing: -0.02em;
-    color: var(--text);
     margin: 0;
+    color: var(--text);
 }
 
 .header-logo:hover h1 {
@@ -1222,91 +1435,116 @@ body {
     margin-bottom: 20px;
 }
 
-/* Landing Form */
+/* ========================================
+   LANDING FORM - 精致输入框设计
+   ======================================== */
+
 .main-form {
     margin-bottom: 40px;
 }
 
+.input-wrapper {
+    position: relative;
+    width: 100%;
+}
+
 .main-input {
     width: 100%;
-    padding: 32px 160px 32px 32px;
-    font-size: 20px;
-    border: 2px solid var(--border);
-    border-radius: 14px;
+    padding: 20px 56px 20px 24px;
+    font-size: 17px;
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
     background: var(--input-bg);
     color: var(--text);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: text;
-    font-weight: 400;
+    transition: all var(--duration-normal) cubic-bezier(0.4, 0, 0.2, 1);
     font-family: inherit;
     resize: none;
     line-height: 1.5;
-    display: block;
+    font-weight: 400;
+    min-height: 56px;
 }
 
 .main-input:hover {
     border-color: var(--border-dark);
     background: var(--input-bg-hover);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-sm);
 }
 
 .main-input:focus {
     outline: none;
-    border-color: var(--border-focus);
+    border-color: var(--primary-color);
     background: var(--input-bg-focus);
-    transform: translateY(-2px);
-    box-shadow: 0 0 0 4px rgba(10, 10, 10, 0.05), var(--shadow-lg);
+    box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.08), var(--shadow-md);
 }
 
-.submit-btn {
+/* 占位符样式 */
+.main-input::placeholder {
+    color: var(--text-placeholder);
+    font-weight: 300;
+}
+
+/* 发送按钮 - 右下角圆形 */
+.send-btn {
     position: absolute;
     right: 10px;
-    top: 10px;
     bottom: 10px;
-    background: var(--primary-color);
-    color: var(--background);
+    width: 36px;
+    height: 36px;
+    padding: 0;
     border: none;
-    border-radius: var(--radius-md);
-    padding: var(--space-md) 20px;
-    font-size: 15px;
-    font-weight: 600;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0a0a0a, #2a2a2a);
+    color: var(--background);
     cursor: pointer;
-    transition: all var(--duration-normal) cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
-    gap: var(--space-sm);
+    justify-content: center;
+    transition: all var(--duration-fast) cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(10, 10, 10, 0.15);
+}
+
+.send-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #1a1a1a, #3a3a3a);
+    transform: scale(1.08);
+    box-shadow: 0 4px 16px rgba(10, 10, 10, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.1);
+}
+
+.send-btn:active:not(:disabled) {
+    transform: scale(1);
     box-shadow: var(--shadow-sm);
 }
 
-.submit-btn:hover:not(:disabled) {
-    background: var(--primary-hover);
-    box-shadow: var(--shadow-md);
-    transform: translateY(-1px);
-}
-
-.submit-btn:active:not(:disabled) {
-    background: var(--primary-light);
-    transform: translateY(0);
-    box-shadow: var(--shadow-sm);
-}
-
-.submit-btn:disabled {
+.send-btn:disabled {
     background: var(--border);
     color: var(--text-tertiary);
     cursor: not-allowed;
-    opacity: 1;
-    box-shadow: none;
-    transform: none;
-}
-
-.submit-btn:disabled:hover {
+    opacity: 0.6;
     transform: none;
     box-shadow: none;
 }
 
-.submit-btn svg {
-    flex-shrink: 0;
+.send-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2;
+    transition: transform var(--duration-fast) ease;
+}
+
+.send-btn:hover:not(:disabled) svg {
+    transform: translateX(1px) translateY(1px);
+}
+
+.send-btn svg.spin {
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Loading Spinner */
@@ -1823,4 +2061,183 @@ body {
     border-radius: 4px;
     overflow-x: auto;
     font-size: 11px;
+}
+
+/* EXECUTION STEPS HISTORY STYLES */
+
+/* 执行步骤容器 */
+.message-execution-steps {
+    margin-bottom: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    font-size: 13px;
+}
+
+/* 单个执行步骤 */
+.execution-step {
+    padding: 10px;
+    margin-bottom: 8px;
+    background: var(--background);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+}
+
+.execution-step:last-child {
+    margin-bottom: 0;
+}
+
+/* 步骤头部 */
+.step-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.step-icon {
+    font-size: 14px;
+}
+
+.step-time {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-tertiary);
+}
+
+/* 思考内容 */
+.step-reasoning {
+    margin-bottom: 8px;
+}
+
+.step-reasoning details {
+    margin-bottom: 4px;
+}
+
+.step-reasoning summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.step-reasoning pre {
+    margin: 4px 0 0 0;
+    padding: 8px;
+    background: var(--input-bg-hover);
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* 工具调用 */
+.step-tool {
+    margin-bottom: 8px;
+}
+
+.step-tool details {
+    margin-bottom: 4px;
+}
+
+.step-tool summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #92400e;
+    font-size: 12px;
+}
+
+.step-tool pre {
+    margin: 4px 0 0 0;
+    padding: 8px;
+    background: #fef9c3;
+    border-radius: 4px;
+    font-size: 11px;
+    overflow-x: auto;
+}
+
+/* 工具结果 */
+.step-result {
+    margin-bottom: 8px;
+}
+
+.step-result details {
+    margin-bottom: 4px;
+}
+
+.step-result summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--success);
+    font-size: 12px;
+}
+
+.step-result pre {
+    margin: 4px 0 0 0;
+    padding: 8px;
+    background: #d1fae5;
+    border-radius: 4px;
+    font-size: 11px;
+    overflow-x: auto;
+}
+
+/* 工具错误 */
+.step-error {
+    padding: 8px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 4px;
+    color: #991b1b;
+    font-size: 12px;
+}
+
+.step-error details {
+    margin-bottom: 4px;
+}
+
+.step-error summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #991b1b;
+    font-size: 12px;
+}
+
+.step-error pre {
+    margin: 4px 0 0 0;
+    padding: 8px;
+    background: #fee2e2;
+    border-radius: 4px;
+    font-size: 11px;
+    overflow-x: auto;
+}
+
+/* 确保 details 默认展开并且有良好的样式 */
+details {
+    display: block;
+}
+
+details summary {
+    cursor: pointer;
+    font-weight: 600;
+    user-select: none;
+    list-style: none;
+}
+
+details summary::-webkit-details-marker {
+    display: none;
+}
+
+details summary::before {
+    content: '▶ ';
+    font-size: 10px;
+    margin-right: 4px;
+}
+
+details[open] summary::before {
+    content: '▼ ';
+}
+
+details[open] summary {
+    margin-bottom: 6px;
 }

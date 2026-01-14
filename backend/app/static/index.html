@@ -52,19 +52,18 @@
 
         <!-- Main form -->
         <form id="mainForm" class="main-form">
-            <div class="input-container">
+            <div class="input-wrapper">
                 <textarea
                     id="mainInput"
                     class="main-input"
-                    placeholder="描述你想构建的应用，例如：创建一个任务管理系统..."
-                    rows="3"
+                    placeholder="描述你想构建的应用..."
+                    rows="2"
                 ></textarea>
-                <button type="submit" class="submit-btn" id="submitBtn">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="22" y1="2" x2="11" y2="13"></line>
-                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                <button type="submit" class="send-btn" id="sendBtn" aria-label="发送" title="按 Enter 发送，Shift+Enter 换行">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 2L11 13"/>
+                        <path d="M22 2l-7 20-4-9-9-4 20-7z"/>
                     </svg>
-                    构建应用
                 </button>
             </div>
         </form>

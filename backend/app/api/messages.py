@@ -263,7 +263,11 @@ async def _run_agent_loop(
     assistant_message: Message
 ) -> tuple:
     """运行 AI agent 循环。"""
+    # 添加开始日志
+    logger.info(f"=== _run_agent_loop START: session={session_id}, message_id={assistant_message.id} ===")
+
     tools_schema = agent_sandbox.get_tools_schema()
+    logger.info(f"Tools schema: {len(tools_schema)} tools available")
     final_reasoning = None
     final_tool_calls = None
     assistant_response = ""
@@ -297,10 +301,23 @@ async def _run_agent_loop(
                     f"value='{msg.get('reasoning_content', 'MISSING')[:50]}'"
                 )
 
-        assistant_response, tool_calls, reasoning_content = await ai_service.chat_with_tools(
-            messages=ai_messages,
-            tools=tools_schema
-        )
+        logger.info(f"=== Iteration {iteration}: Calling chat_with_tools ===")
+        logger.info(f"  Messages count: {len(ai_messages)}")
+        logger.info(f"  Tools count: {len(tools_schema)}")
+
+        try:
+            assistant_response, tool_calls, reasoning_content = await ai_service.chat_with_tools(
+                messages=ai_messages,
+                tools=tools_schema
+            )
+            logger.info(f"=== Iteration {iteration}: chat_with_tools returned ===")
+            logger.info(f"  Response length: {len(assistant_response)}")
+            logger.info(f"  Tool calls count: {len(tool_calls) if tool_calls else 0}")
+            logger.info(f"  Reasoning length: {len(reasoning_content) if reasoning_content else 0}")
+        except Exception as e:
+            logger.error(f"=== Iteration {iteration}: chat_with_tools FAILED ===")
+            logger.error(f"  Error: {e}", exc_info=True)
+            raise
 
         if reasoning_content:
             final_reasoning = reasoning_content
@@ -467,6 +484,8 @@ async def _run_agent_loop(
         progress=100.0
     )
 
+    logger.info(f"=== _run_agent_loop END: session={session_id}, total_iterations={iteration} ===")
+
     return assistant_response, final_reasoning, final_tool_calls
 
 
@@ -613,13 +632,19 @@ async def create_message(
             db.refresh(assistant_message)
 
         except Exception as e:
-            logger.error(f"Agent loop error: {e}", exc_info=True)
+            logger.error(f"=== Agent loop ERROR ===")
+            logger.error(f"  Session: {session_id}")
+            logger.error(f"  Error: {e}", exc_info=True)
+            logger.error(f"  Error type: {type(e).__name__}")
+
             assistant_message = Message(
                 session_id=session_id,
                 role=MessageRole.ASSISTANT,
                 content=f"AI服务出错：{str(e)}"
             )
             db.add(assistant_message)
+            db.commit()
+            db.refresh(assistant_message)
     else:
         assistant_message = await _handle_legacy_mode(
             ai_service, ai_messages, message_create, current_user, session_id, db

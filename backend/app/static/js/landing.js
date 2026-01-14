@@ -5,7 +5,7 @@ let pendingInput = '';
 // DOM elements
 const mainForm = document.getElementById('mainForm');
 const mainInput = document.getElementById('mainInput');
-const submitBtn = document.getElementById('submitBtn');
+const sendBtn = document.getElementById('sendBtn');
 const authModal = document.getElementById('authModal');
 const modalOverlay = document.getElementById('modalOverlay');
 const modalClose = document.getElementById('modalClose');
@@ -196,6 +196,16 @@ function setupEventListeners() {
     // Form submission
     mainForm.addEventListener('submit', handleMainSubmit);
 
+    // Keyboard: Enter to submit, Shift+Enter for new line
+    mainInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (mainInput.value.trim() && !sendBtn.disabled) {
+                mainForm.dispatchEvent(new Event('submit'));
+            }
+        }
+    });
+
     // Example tags
     examples.forEach(tag => {
         tag.addEventListener('click', handleExampleClick);
@@ -259,8 +269,12 @@ function handleExampleClick(e) {
 async function createSessionAndRedirect(content) {
     try {
         // Show loading state
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="loading-spinner"></span> 创建中...';
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = `
+            <svg class="spin" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            </svg>
+        `;
 
         // Generate session title from content
         const title = content.length > 30 ? content.substring(0, 30) + '...' : content;
@@ -278,13 +292,12 @@ async function createSessionAndRedirect(content) {
         alert('创建会话失败: ' + error.message);
     } finally {
         // Reset button
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13"></line>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 2L11 13"/>
+                <path d="M22 2l-7 20-4-9-9-4 20-7z"/>
             </svg>
-            开始创建
         `;
     }
 }

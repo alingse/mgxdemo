@@ -232,6 +232,10 @@ class DeepSeekService(AIService):
         Returns:
             (最终回复, 工具调用列表, 推理内容)
         """
+        logger.info(f"=== chat_with_tools START ===")
+        logger.info(f"  Model: {self.model}")
+        logger.info(f"  Enable reasoning: {self.enable_reasoning}")
+
         messages = _ensure_system_prompt(messages, _DEEPSEEK_SYSTEM_PROMPT)
 
         logger.info(
@@ -273,8 +277,17 @@ class DeepSeekService(AIService):
             if self.enable_reasoning:
                 request_params["extra_body"] = {"thinking": {"type": "enabled"}}
 
+            logger.info(f"=== Calling DeepSeek API ===")
+            logger.info(f"  URL: {settings.deepseek_base_url}")
+            logger.info(f"  Request params keys: {list(request_params.keys())}")
+
             response = await self.client.chat.completions.create(**request_params)
+
+            logger.info(f"=== DeepSeek API returned ===")
             message = response.choices[0].message
+            logger.info(f"  Has content: {bool(message.content)}")
+            logger.info(f"  Has tool_calls: {bool(message.tool_calls)}")
+            logger.info(f"  Has reasoning_content: {hasattr(message, 'reasoning_content')}")
 
             reasoning_content = None
             if hasattr(message, 'reasoning_content') and message.reasoning_content:
@@ -291,7 +304,9 @@ class DeepSeekService(AIService):
             return message.content or "", tool_calls_history, reasoning_content
 
         except Exception as e:
-            logger.error(f"DeepSeek tool calling error: {e}")
+            logger.error(f"=== DeepSeek API ERROR ===")
+            logger.error(f"  Error type: {type(e).__name__}")
+            logger.error(f"  Error message: {e}", exc_info=True)
             return f"AI服务调用失败：{str(e)}", [], None
 
     def clear_reasoning_from_messages(self, messages: list[dict]) -> None:

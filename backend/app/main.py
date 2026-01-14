@@ -1,3 +1,4 @@
+import logging
 import os
 
 from fastapi import FastAPI
@@ -12,6 +13,16 @@ from app.database import init_db
 # 导入所有模型以确保 SQLAlchemy 创建表
 
 settings = get_settings()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s: %(message)s'
+)
+# Set specific loggers to INFO level
+logging.getLogger('app').setLevel(logging.INFO)
+logging.getLogger('app.api').setLevel(logging.INFO)
+logging.getLogger('app.services').setLevel(logging.INFO)
 
 # Create FastAPI app
 app = FastAPI(
