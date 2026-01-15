@@ -9,6 +9,13 @@
 <body>
     <div id="app">
         <header class="header">
+            <button id="mobileMenuBtn" class="mobile-menu-btn btn-icon" aria-label="打开菜单" title="打开菜单">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
             <a href="/" class="header-logo">
                 <h1>Aeio Dev Agent</h1>
             </a>
@@ -143,6 +150,23 @@
                     <iframe id="previewFrame" class="preview-frame"></iframe>
                 </div>
             </section>
+
+            <!-- Mobile Tab Navigation -->
+            <nav class="mobile-tabs" id="mobileTabs">
+                <button class="mobile-tab active" data-view="chat">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>对话</span>
+                </button>
+                <button class="mobile-tab" data-view="preview">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <span>预览</span>
+                </button>
+            </nav>
         </main>
     </div>
 

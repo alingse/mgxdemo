@@ -19,6 +19,7 @@ const elements = {
     newSessionBtn: document.getElementById('newSessionBtn'),
     logoutBtn: document.getElementById('logoutBtn'),
     refreshPreviewBtn: document.getElementById('refreshPreviewBtn'),
+    mobileMenuBtn: document.getElementById('mobileMenuBtn'),
     showSessionsBtn: document.getElementById('showSessionsBtn'),
     newSessionInlineBtn: document.getElementById('newSessionInlineBtn'),
     currentSessionTitle: document.getElementById('currentSessionTitle'),
@@ -354,16 +355,27 @@ const ui = {
     toggleSidebar() {
         sidebarVisible = !sidebarVisible;
         elements.sessionSidebar.classList.toggle('open', sidebarVisible);
+        this._updateSidebarOverlay();
     },
 
     showSidebar() {
         sidebarVisible = true;
         elements.sessionSidebar.classList.add('open');
+        this._updateSidebarOverlay();
     },
 
     hideSidebar() {
         sidebarVisible = false;
         elements.sessionSidebar.classList.remove('open');
+        this._updateSidebarOverlay();
+    },
+
+    _updateSidebarOverlay() {
+        // 已禁用遮罩层功能 - 不再创建遮罩层
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
     },
 
     updatePreview() {
@@ -551,6 +563,11 @@ async function selectSession(session) {
     ui.updatePreview();
     if (!isReadOnlyMode) {
         ui.enableMessageForm();
+    }
+
+    // 选择会话后自动收起侧边栏（所有屏幕尺寸）
+    if (sidebarVisible) {
+        ui.toggleSidebar();
     }
 }
 
@@ -986,7 +1003,8 @@ function setupEventListeners() {
     elements.messageForm.addEventListener('submit', sendMessage);
     elements.logoutBtn.addEventListener('click', handleLogout);
     elements.refreshPreviewBtn.addEventListener('click', ui.refreshPreview);
-    elements.showSessionsBtn.addEventListener('click', ui.toggleSidebar);
+    elements.mobileMenuBtn.addEventListener('click', () => ui.toggleSidebar());
+    elements.showSessionsBtn.addEventListener('click', () => ui.toggleSidebar());
     elements.newSessionInlineBtn.addEventListener('click', createNewSession);
 
     // 体验按钮：打开新窗口
@@ -1033,6 +1051,33 @@ function setupEventListeners() {
             }
         }
     });
+
+    // 移动端 Tab 切换
+    const mobileTabs = document.getElementById('mobileTabs');
+    if (mobileTabs) {
+        const tabs = mobileTabs.querySelectorAll('.mobile-tab');
+        const mainContainer = document.querySelector('.main-container');
+        const previewArea = document.querySelector('.preview-area');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const view = tab.dataset.view;
+
+                // 切换 Tab 状态
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                // 切换视图
+                if (view === 'preview') {
+                    mainContainer.classList.add('preview-mode');
+                    previewArea.classList.add('active');
+                } else {
+                    mainContainer.classList.remove('preview-mode');
+                    previewArea.classList.remove('active');
+                }
+            });
+        });
+    }
 }
 
 /**

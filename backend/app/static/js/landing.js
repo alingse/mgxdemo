@@ -17,6 +17,7 @@ const unauthActions = document.getElementById('unauthActions');
 const authActions = document.getElementById('authActions');
 const userInfo = document.getElementById('userInfo');
 const logoutBtn = document.getElementById('logoutBtn');
+const mobileMenuBtn = document.getElementById('mobileMenuBtn');
 const sidebarToggle = document.getElementById('sidebarToggle');
 const landingSidebar = document.getElementById('landingSidebar');
 const sessionsList = document.getElementById('sessionsList');
@@ -53,6 +54,14 @@ async function initLanding() {
     // 静默检查认证状态
     currentUser = await checkAuthStatus();
     updateHeaderUI();
+
+    // 初始化移动端侧边栏样式
+    updateMobileSidebarStyles();
+
+    // 监听窗口大小变化
+    window.addEventListener('resize', () => {
+        updateMobileSidebarStyles();
+    });
 
     // 如果已登录，加载会话列表
     if (currentUser) {
@@ -153,9 +162,57 @@ function formatTime(dateString) {
     return date.toLocaleDateString('zh-CN');
 }
 
+// 检查是否为移动端
+function isMobile() {
+    return window.innerWidth <= 767;
+}
+
+// 更新移动端侧边栏样式
+function updateMobileSidebarStyles() {
+    if (isMobile()) {
+        // 移动端：默认隐藏侧边栏
+        if (!landingSidebar.classList.contains('open')) {
+            landingSidebar.style.transform = 'translateX(-100%)';
+            landingSidebar.style.width = '75%';
+            landingSidebar.style.maxWidth = '280px';
+        }
+    } else {
+        // 桌面端：恢复原样式
+        landingSidebar.style.transform = '';
+        landingSidebar.style.width = '';
+        landingSidebar.style.maxWidth = '';
+    }
+}
+
 // 侧边栏切换
 function toggleSidebar() {
     landingSidebar.classList.toggle('open');
+
+    // 移动端特殊处理
+    if (isMobile()) {
+        if (landingSidebar.classList.contains('open')) {
+            landingSidebar.style.transform = 'translateX(0)';
+            // 添加遮罩层
+            let overlay = document.querySelector('.sidebar-overlay.landing-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.className = 'sidebar-overlay landing-overlay';
+                overlay.addEventListener('click', toggleSidebar);
+                document.body.appendChild(overlay);
+            }
+            setTimeout(() => overlay.classList.add('active'), 0);
+            document.body.style.overflow = 'hidden';
+        } else {
+            landingSidebar.style.transform = 'translateX(-100%)';
+            // 移除遮罩层
+            const overlay = document.querySelector('.sidebar-overlay.landing-overlay');
+            if (overlay) {
+                overlay.classList.remove('active');
+            }
+            document.body.style.overflow = '';
+        }
+    }
+
     // 更新按钮图标方向
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn) {
@@ -242,6 +299,9 @@ function setupEventListeners() {
     document.getElementById('modalRegisterForm').addEventListener('submit', handleModalRegister);
 
     // Header and Sidebar events
+    if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', toggleSidebar);
+    }
     if (sidebarToggle) {
         sidebarToggle.addEventListener('click', toggleSidebar);
     }
