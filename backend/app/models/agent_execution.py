@@ -1,4 +1,5 @@
 """Agent execution tracking models."""
+
 import enum
 import json
 
@@ -11,13 +12,14 @@ from app.database import Base
 
 class ExecutionStatus(str, enum.Enum):
     """Agent execution status enum."""
-    THINKING = "thinking"           # AI 正在思考
-    TOOL_CALLING = "tool_calling"   # AI 调用工具
-    TOOL_EXECUTING = "tool_executing" # 工具正在执行
-    TOOL_COMPLETED = "tool_completed" # 工具执行完成
-    FINALIZING = "finalizing"       # 生成最终答案
-    COMPLETED = "completed"         # 完成
-    FAILED = "failed"               # 失败
+
+    THINKING = "thinking"  # AI 正在思考
+    TOOL_CALLING = "tool_calling"  # AI 调用工具
+    TOOL_EXECUTING = "tool_executing"  # 工具正在执行
+    TOOL_COMPLETED = "tool_completed"  # 工具执行完成
+    FINALIZING = "finalizing"  # 生成最终答案
+    COMPLETED = "completed"  # 完成
+    FAILED = "failed"  # 失败
 
 
 class AgentExecutionStep(Base):

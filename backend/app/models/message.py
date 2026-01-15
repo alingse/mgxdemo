@@ -11,6 +11,7 @@ from app.database import Base
 
 class MessageRole(str, enum.Enum):
     """Message role enum."""
+
     USER = "user"
     ASSISTANT = "assistant"
     SYSTEM = "system"

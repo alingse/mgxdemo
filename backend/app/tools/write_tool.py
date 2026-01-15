@@ -29,25 +29,17 @@ class WriteTool(AgentTool):
             "properties": {
                 "filename": {
                     "type": "string",
-                    "description": "文件名，例如：index.html, style.css, script.js"
+                    "description": "文件名，例如：index.html, style.css, script.js",
                 },
-                "content": {
-                    "type": "string",
-                    "description": "文件的完整内容"
-                }
+                "content": {"type": "string", "description": "文件的完整内容"},
             },
-            "required": ["filename", "content"]
+            "required": ["filename", "content"],
         }
 
     async def execute(self, filename: str, content: str) -> str:
         """写入文件"""
         try:
-            await sandbox_service.write_file(
-                self.user_id,
-                self.session_id,
-                filename,
-                content
-            )
+            await sandbox_service.write_file(self.user_id, self.session_id, filename, content)
             return f"成功写入文件 {filename}（大小：{len(content)} 字节）"
         except ValueError as e:
             return f"错误：{str(e)}"

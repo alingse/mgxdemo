@@ -1,4 +1,5 @@
 """测试执行进度追踪功能"""
+
 import os
 import sys
 
@@ -29,22 +30,14 @@ def test_execution_progress():
 
         # 创建测试用户
         print("创建测试用户...")
-        user = User(
-            username="test_user",
-            email="test@example.com",
-            hashed_password="hash"
-        )
+        user = User(username="test_user", email="test@example.com", hashed_password="hash")
         db.add(user)
         db.commit()
         db.refresh(user)
 
         # 创建测试会话
         print("创建测试会话...")
-        session = Session(
-            id="test_session_123",
-            user_id=user.id,
-            title="Test Session"
-        )
+        session = Session(id="test_session_123", user_id=user.id, title="Test Session")
         db.add(session)
         db.commit()
         db.refresh(session)
@@ -56,7 +49,7 @@ def test_execution_progress():
             role=MessageRole.ASSISTANT,
             content="",
             reasoning_content=None,
-            tool_calls=None
+            tool_calls=None,
         )
         db.add(message)
         db.commit()
@@ -73,7 +66,7 @@ def test_execution_progress():
             iteration=1,
             status=ExecutionStatus.THINKING,
             reasoning_content="用户想要创建一个待办事项列表...",
-            progress=10.0
+            progress=10.0,
         )
         db.add(step1)
         db.commit()
@@ -89,13 +82,12 @@ def test_execution_progress():
             tool_name="write",
             tool_arguments='{"filename": "index.html", "content": "<html>...</html>"}',
             tool_call_id="call_123",
-            progress=20.0
+            progress=20.0,
         )
         db.add(step2)
         db.commit()
         print(
-            f"✓ 步骤 2: {step2.status.value} "
-            f"(tool={step2.tool_name}, progress={step2.progress}%)"
+            f"✓ 步骤 2: {step2.status.value} (tool={step2.tool_name}, progress={step2.progress}%)"
         )
 
         # 步骤 3: 工具执行中
@@ -108,13 +100,12 @@ def test_execution_progress():
             tool_name="write",
             tool_arguments='{"filename": "index.html", "content": "<html>...</html>"}',
             tool_call_id="call_123",
-            progress=25.0
+            progress=25.0,
         )
         db.add(step3)
         db.commit()
         print(
-            f"✓ 步骤 3: {step3.status.value} "
-            f"(tool={step3.tool_name}, progress={step3.progress}%)"
+            f"✓ 步骤 3: {step3.status.value} (tool={step3.tool_name}, progress={step3.progress}%)"
         )
 
         # 步骤 4: 工具完成
@@ -128,13 +119,12 @@ def test_execution_progress():
             tool_arguments='{"filename": "index.html", "content": "<html>...</html>"}',
             tool_call_id="call_123",
             tool_result="文件写入成功",
-            progress=30.0
+            progress=30.0,
         )
         db.add(step4)
         db.commit()
         print(
-            f"✓ 步骤 4: {step4.status.value} "
-            f"(tool={step4.tool_name}, progress={step4.progress}%)"
+            f"✓ 步骤 4: {step4.status.value} (tool={step4.tool_name}, progress={step4.progress}%)"
         )
 
         # 步骤 5: 第二轮思考
@@ -145,7 +135,7 @@ def test_execution_progress():
             iteration=2,
             status=ExecutionStatus.THINKING,
             reasoning_content="文件创建成功，现在需要添加样式...",
-            progress=35.0
+            progress=35.0,
         )
         db.add(step5)
         db.commit()
@@ -161,7 +151,7 @@ def test_execution_progress():
             user_id=user.id,
             iteration=2,
             status=ExecutionStatus.COMPLETED,
-            progress=100.0
+            progress=100.0,
         )
         db.add(step6)
         db.commit()
@@ -177,9 +167,12 @@ def test_execution_progress():
         print("\n查询测试...")
 
         # 测试 1: 查询所有步骤
-        all_steps = db.query(AgentExecutionStep).filter(
-            AgentExecutionStep.message_id == message.id
-        ).order_by(AgentExecutionStep.created_at.asc()).all()
+        all_steps = (
+            db.query(AgentExecutionStep)
+            .filter(AgentExecutionStep.message_id == message.id)
+            .order_by(AgentExecutionStep.created_at.asc())
+            .all()
+        )
 
         print(f"✓ 查询到 {len(all_steps)} 个步骤")
 
@@ -188,34 +181,39 @@ def test_execution_progress():
         for i, step in enumerate(all_steps, 1):
             step_dict = step.to_dict()
             print(f"{i}. {step_dict['status']} - progress={step_dict['progress']}%")
-            if step_dict.get('tool_name'):
+            if step_dict.get("tool_name"):
                 print(f"   工具: {step_dict['tool_name']}")
-            if step_dict.get('reasoning_content'):
-                content = step_dict['reasoning_content'][:50] + "..."
+            if step_dict.get("reasoning_content"):
+                content = step_dict["reasoning_content"][:50] + "..."
                 print(f"   思考: {content}")
 
         # 测试 3: 统计各状态步骤数
         print("\n状态统计:")
         for status in ExecutionStatus:
-            count = db.query(AgentExecutionStep).filter(
-                AgentExecutionStep.message_id == message.id,
-                AgentExecutionStep.status == status
-            ).count()
+            count = (
+                db.query(AgentExecutionStep)
+                .filter(
+                    AgentExecutionStep.message_id == message.id, AgentExecutionStep.status == status
+                )
+                .count()
+            )
             if count > 0:
                 print(f"  {status.value}: {count}")
 
         print("\n✅ 所有测试通过！")
 
         # 显示数据结构示例
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("前端将收到的 JSON 响应示例:")
-        print("="*60)
+        print("=" * 60)
         import json
+
         print(json.dumps([step.to_dict() for step in all_steps[:3]], indent=2, ensure_ascii=False))
 
     except Exception as e:
         print(f"\n❌ 测试失败: {e}")
         import traceback
+
         traceback.print_exc()
         db.rollback()
     finally:

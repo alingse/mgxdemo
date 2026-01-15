@@ -7,16 +7,19 @@ from pydantic import BaseModel, field_validator
 
 class SessionBase(BaseModel):
     """Base session schema."""
+
     title: str
 
 
 class SessionCreate(SessionBase):
     """Session creation schema."""
+
     pass
 
 
 class SessionResponse(SessionBase):
     """Session response schema."""
+
     id: str
     is_public: bool
     created_at: datetime
@@ -28,24 +31,27 @@ class SessionResponse(SessionBase):
 
 class MessageBase(BaseModel):
     """Base message schema."""
+
     content: str
 
 
 class MessageCreate(MessageBase):
     """Message creation schema."""
+
     pass
 
 
 class MessageResponse(MessageBase):
     """Message response schema."""
+
     id: int
     role: str
     reasoning_content: str | None = None  # AI 思考内容
-    tool_calls: list[dict] | None = None   # 工具调用记录（自动从数据库 JSON 字符串解析）
+    tool_calls: list[dict] | None = None  # 工具调用记录（自动从数据库 JSON 字符串解析）
     tool_call_id: str | None = None  # TOOL 角色消息的 tool_call_id
     created_at: datetime
 
-    @field_validator('tool_calls', mode='before')
+    @field_validator("tool_calls", mode="before")
     @classmethod
     def parse_tool_calls(cls, value: Any) -> list[dict] | None:
         """将数据库中的 JSON 字符串解析为列表（在验证前执行）。"""
@@ -66,11 +72,13 @@ class MessageResponse(MessageBase):
 
 class SessionDetail(SessionResponse):
     """Session detail with messages and ownership info."""
+
     messages: list[MessageResponse] = []
     is_owner: bool = True  # 默认 True 保持向后兼容
 
 
 class SessionUpdate(BaseModel):
     """Session update schema."""
+
     title: str | None = None
     is_public: bool | None = None

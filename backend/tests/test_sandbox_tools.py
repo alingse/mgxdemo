@@ -1,21 +1,14 @@
 """Sandbox Tools 测试用例 - Read, List, Write 工具的完整测试"""
-import os
+
 import shutil
 import tempfile
-from pathlib import Path
 
 import pytest
 
+from app.services.sandbox_service import get_sandbox_service, list_files, read_file, write_file
 from app.tools.list_tool import ListTool
 from app.tools.read_tool import ReadTool
 from app.tools.write_tool import WriteTool
-from app.services.sandbox_service import (
-    get_sandbox_service,
-    initialize_sandbox,
-    read_file,
-    write_file,
-    list_files
-)
 
 
 class TestSandboxServiceModuleFunctions:
@@ -42,13 +35,14 @@ class TestSandboxServiceModuleFunctions:
     def sandbox_path(self, temp_sandbox_dir, test_user_id, test_session_id):
         """设置沙箱路径并确保目录存在"""
         # 临时覆盖沙箱配置
-        from app.config import get_settings
         from unittest.mock import patch
+
+        from app.config import get_settings
 
         settings = get_settings()
         original_base_dir = settings.sandbox_base_dir
 
-        with patch.object(settings, 'sandbox_base_dir', temp_sandbox_dir):
+        with patch.object(settings, "sandbox_base_dir", temp_sandbox_dir):
             sandbox_service = get_sandbox_service()
             sandbox_path = sandbox_service._get_sandbox_path(test_user_id, test_session_id)
             sandbox_path.mkdir(parents=True, exist_ok=True)
@@ -61,7 +55,7 @@ class TestSandboxServiceModuleFunctions:
     async def test_module_level_write_file(self, sandbox_path, test_user_id, test_session_id):
         """测试模块级别 write_file 函数"""
         test_content = "<h1>Test Content</h1>"
-        result = await write_file(test_user_id, test_session_id, "test.html", test_content)
+        await write_file(test_user_id, test_session_id, "test.html", test_content)
 
         # 验证文件被创建
         file_path = sandbox_path / "test.html"
@@ -90,7 +84,9 @@ class TestSandboxServiceModuleFunctions:
         assert set(files) == {"index.html", "style.css", "script.js"}
 
     @pytest.mark.asyncio
-    async def test_module_level_read_nonexistent_file(self, sandbox_path, test_user_id, test_session_id):
+    async def test_module_level_read_nonexistent_file(
+        self, sandbox_path, test_user_id, test_session_id
+    ):
         """测试读取不存在的文件"""
         with pytest.raises(FileNotFoundError):
             await read_file(test_user_id, test_session_id, "nonexistent.html")
@@ -117,12 +113,13 @@ class TestReadTool:
     @pytest.fixture
     def sandbox_path(self, temp_sandbox_dir, test_user_id, test_session_id):
         """设置沙箱路径"""
-        from app.config import get_settings
         from unittest.mock import patch
+
+        from app.config import get_settings
 
         settings = get_settings()
 
-        with patch.object(settings, 'sandbox_base_dir', temp_sandbox_dir):
+        with patch.object(settings, "sandbox_base_dir", temp_sandbox_dir):
             sandbox_service = get_sandbox_service()
             sandbox_path = sandbox_service._get_sandbox_path(test_user_id, test_session_id)
             sandbox_path.mkdir(parents=True, exist_ok=True)
@@ -203,7 +200,9 @@ init();"""
         assert "loadConfig" in result
 
     @pytest.mark.asyncio
-    async def test_read_file_with_special_characters(self, sandbox_path, test_user_id, test_session_id):
+    async def test_read_file_with_special_characters(
+        self, sandbox_path, test_user_id, test_session_id
+    ):
         """测试读取包含特殊字符的文件"""
         content = "测试中文内容 & Special <chars>"
         (sandbox_path / "test.txt").write_text(content, encoding="utf-8")
@@ -215,7 +214,9 @@ init();"""
         assert "Special <chars>" in result
 
     @pytest.mark.asyncio
-    async def test_read_file_with_invalid_filename(self, sandbox_path, test_user_id, test_session_id):
+    async def test_read_file_with_invalid_filename(
+        self, sandbox_path, test_user_id, test_session_id
+    ):
         """测试使用无效文件名（路径遍历攻击）"""
         tool = ReadTool(test_user_id, test_session_id)
         result = await tool.execute(filename="../../../etc/passwd")
@@ -255,12 +256,13 @@ class TestListTool:
     @pytest.fixture
     def sandbox_path(self, temp_sandbox_dir, test_user_id, test_session_id):
         """设置沙箱路径"""
-        from app.config import get_settings
         from unittest.mock import patch
+
+        from app.config import get_settings
 
         settings = get_settings()
 
-        with patch.object(settings, 'sandbox_base_dir', temp_sandbox_dir):
+        with patch.object(settings, "sandbox_base_dir", temp_sandbox_dir):
             sandbox_service = get_sandbox_service()
             sandbox_path = sandbox_service._get_sandbox_path(test_user_id, test_session_id)
             sandbox_path.mkdir(parents=True, exist_ok=True)
@@ -273,7 +275,7 @@ class TestListTool:
             ("index.html", "<html></html>"),
             ("style.css", "body {}"),
             ("script.js", "console.log('test');"),
-            ("README.md", "# Test Project")
+            ("README.md", "# Test Project"),
         ]
 
         for filename, content in files_to_create:
@@ -347,12 +349,13 @@ class TestWriteTool:
     @pytest.fixture
     def sandbox_path(self, temp_sandbox_dir, test_user_id, test_session_id):
         """设置沙箱路径"""
-        from app.config import get_settings
         from unittest.mock import patch
+
+        from app.config import get_settings
 
         settings = get_settings()
 
-        with patch.object(settings, 'sandbox_base_dir', temp_sandbox_dir):
+        with patch.object(settings, "sandbox_base_dir", temp_sandbox_dir):
             sandbox_service = get_sandbox_service()
             sandbox_path = sandbox_service._get_sandbox_path(test_user_id, test_session_id)
             sandbox_path.mkdir(parents=True, exist_ok=True)
@@ -480,7 +483,9 @@ export { fetchData, CONFIG };"""
         # 生成一个约 10KB 的 HTML 内容
         large_content = "<!DOCTYPE html><html><head><title>Large File</title></head><body>"
         for i in range(1000):
-            large_content += f'<p>Paragraph {i}: Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>'
+            large_content += (
+                f"<p>Paragraph {i}: Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>"
+            )
         large_content += "</body></html>"
 
         tool = WriteTool(test_user_id, test_session_id)
@@ -499,7 +504,9 @@ export { fetchData, CONFIG };"""
 
         assert tool.name == "write"
         assert tool.description is not None
-        assert "创建" in tool.description or "写入" in tool.description or "覆盖" in tool.description
+        assert (
+            "创建" in tool.description or "写入" in tool.description or "覆盖" in tool.description
+        )
         assert tool.parameters is not None
         assert "filename" in tool.parameters["properties"]
         assert "content" in tool.parameters["properties"]
@@ -527,12 +534,13 @@ class TestToolsIntegration:
     @pytest.fixture
     def sandbox_path(self, temp_sandbox_dir, test_user_id, test_session_id):
         """设置沙箱路径"""
-        from app.config import get_settings
         from unittest.mock import patch
+
+        from app.config import get_settings
 
         settings = get_settings()
 
-        with patch.object(settings, 'sandbox_base_dir', temp_sandbox_dir):
+        with patch.object(settings, "sandbox_base_dir", temp_sandbox_dir):
             sandbox_service = get_sandbox_service()
             sandbox_path = sandbox_service._get_sandbox_path(test_user_id, test_session_id)
             sandbox_path.mkdir(parents=True, exist_ok=True)
@@ -568,7 +576,7 @@ class TestToolsIntegration:
         files = {
             "index.html": "<html><body>Home</body></html>",
             "about.html": "<html><body>About</body></html>",
-            "style.css": "body { margin: 0; }"
+            "style.css": "body { margin: 0; }",
         }
 
         for filename, content in files.items():

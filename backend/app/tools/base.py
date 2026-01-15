@@ -30,8 +30,8 @@ class AgentTool(ABC):
             "function": {
                 "name": self.name,
                 "description": self.description,
-                "parameters": self.parameters
-            }
+                "parameters": self.parameters,
+            },
         }
 
     @abstractmethod

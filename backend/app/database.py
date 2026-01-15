@@ -9,7 +9,7 @@ settings = get_settings()
 # Create database engine
 engine = create_engine(
     settings.database_url,
-    connect_args={"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
+    connect_args={"check_same_thread": False} if settings.database_url.startswith("sqlite") else {},
 )
 
 # Create SessionLocal class

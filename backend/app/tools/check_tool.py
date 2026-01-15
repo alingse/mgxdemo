@@ -8,29 +8,20 @@ from app.tools.base import AgentTool
 logger = logging.getLogger(__name__)
 
 # 默认文件映射
-_DEFAULT_FILES = {
-    "html": "index.html",
-    "css": "style.css",
-    "js": "script.js"
-}
+_DEFAULT_FILES = {"html": "index.html", "css": "style.css", "js": "script.js"}
 
 # 工具安装提示
 _INSTALL_HINTS = {
     "html": "brew install tidy-html5 (macOS) 或 apt-get install tidy (Linux)",
     "css": "npm install -g stylelint",
-    "js": "npm install -g eslint"
+    "js": "npm install -g eslint",
 }
 
 
 def _check_command_exists(command: str) -> bool:
     """检查命令是否存在。"""
     try:
-        subprocess.run(
-            ["which", command],
-            capture_output=True,
-            check=True,
-            timeout=5
-        )
+        subprocess.run(["which", command], capture_output=True, check=True, timeout=5)
         return True
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return False
@@ -38,12 +29,7 @@ def _check_command_exists(command: str) -> bool:
 
 def _run_subprocess(command: list, timeout: int = 10) -> subprocess.CompletedProcess:
     """运行子进程并捕获输出。"""
-    return subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        timeout=timeout
-    )
+    return subprocess.run(command, capture_output=True, text=True, timeout=timeout)
 
 
 class CheckTool(AgentTool):
@@ -83,14 +69,11 @@ class CheckTool(AgentTool):
                 "type": {
                     "type": "string",
                     "enum": ["html", "css", "js", "all"],
-                    "description": "检查类型"
+                    "description": "检查类型",
                 },
-                "filename": {
-                    "type": "string",
-                    "description": "文件名（当type为all时可选）"
-                }
+                "filename": {"type": "string", "description": "文件名（当type为all时可选）"},
             },
-            "required": ["type"]
+            "required": ["type"],
         }
 
     def _get_tools_available(self) -> dict[str, bool]:
@@ -99,7 +82,7 @@ class CheckTool(AgentTool):
             self._tools_available = {
                 "html": _check_command_exists("tidy"),
                 "css": _check_command_exists("stylelint"),
-                "js": _check_command_exists("eslint")
+                "js": _check_command_exists("eslint"),
             }
         return self._tools_available
 
@@ -129,20 +112,14 @@ class CheckTool(AgentTool):
                 if result:
                     results.append(f"**{check_type.upper()}检查**:\n{result}")
             else:
-                results.append(
-                    f"**{check_type.upper()}检查**: 检查工具未安装，跳过此项检查"
-                )
+                results.append(f"**{check_type.upper()}检查**: 检查工具未安装，跳过此项检查")
 
         return "\n\n".join(results) if results else "没有可用的检查工具"
 
     def _format_unavailable_message(self, check_type: str) -> str:
         """格式化工具不可用提示。"""
         hint = _INSTALL_HINTS.get(check_type, "")
-        return (
-            f"{check_type.upper()}检查工具未安装。\n"
-            f"如需使用此功能，请先安装：\n"
-            f"- {hint}"
-        )
+        return f"{check_type.upper()}检查工具未安装。\n如需使用此功能，请先安装：\n- {hint}"
 
     async def _run_check(self, check_type: str, filename: str = None) -> str:
         """运行具体检查。"""

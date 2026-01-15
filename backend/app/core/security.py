@@ -11,9 +11,9 @@ settings = get_settings()
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash."""
     # Truncate to 72 bytes if needed (bcrypt limit)
-    password_bytes = plain_password.encode('utf-8')[:72]
+    password_bytes = plain_password.encode("utf-8")[:72]
     if isinstance(hashed_password, str):
-        hashed_bytes = hashed_password.encode('utf-8')
+        hashed_bytes = hashed_password.encode("utf-8")
     else:
         hashed_bytes = hashed_password
     return bcrypt.checkpw(password_bytes, hashed_bytes)
@@ -22,9 +22,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def get_password_hash(password: str) -> str:
     """Hash a password."""
     # Truncate to 72 bytes if needed (bcrypt limit)
-    password_bytes = password.encode('utf-8')[:72]
+    password_bytes = password.encode("utf-8")[:72]
     hashed = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
-    return hashed.decode('utf-8')
+    return hashed.decode("utf-8")
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:

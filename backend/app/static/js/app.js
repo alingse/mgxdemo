@@ -115,7 +115,7 @@ function _createExecutionStepElement(step) {
             ? JSON.parse(step.tool_arguments)
             : step.tool_arguments;
         detailsHtml += `
-            <details class="step-details">
+            <details class="step-details" open>
                 <summary>🔧 工具参数</summary>
                 <pre>${utils.escapeHtml(JSON.stringify(args, null, 2))}</pre>
             </details>
@@ -125,7 +125,7 @@ function _createExecutionStepElement(step) {
     // 工具结果
     if (step.tool_result) {
         detailsHtml += `
-            <details class="step-details">
+            <details class="step-details" open>
                 <summary>✓ 执行结果</summary>
                 <pre>${utils.escapeHtml(step.tool_result.substring(0, 500))}${step.tool_result.length > 500 ? '...' : ''}</pre>
             </details>
@@ -397,6 +397,39 @@ const ui = {
         // 按钮显示由 selectSession 统一控制
     },
 
+    async loadTodos() {
+        if (!currentSession) return;
+        try {
+            const data = await api.getTodos(currentSession.id);
+            ui.renderTodos(data);
+        } catch (error) {
+            console.error('Failed to load todos:', error);
+        }
+    },
+
+    renderTodos(data) {
+        const panel = document.getElementById('todosPanel');
+        if (!panel) return;
+
+        const list = panel.querySelector('.todos-list');
+        const count = panel.querySelector('.todos-count');
+
+        if (!data || !data.todos || data.todos.length === 0) {
+            panel.style.display = 'none';
+            return;
+        }
+
+        panel.style.display = 'block';
+        count.textContent = `${data.completed}/${data.total}`;
+
+        list.innerHTML = data.todos.map(todo => `
+            <div class="todo-item todo-${todo.status}">
+                <span class="todo-icon">${_getTodoIcon(todo.status)}</span>
+                <span class="todo-text">${utils.escapeHtml(todo.content)}</span>
+            </div>
+        `).join('');
+    },
+
     showToast(message, type = 'success') {
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
@@ -481,6 +514,7 @@ async function selectSession(session) {
 
     renderSessions();
     await loadMessages();
+    await ui.loadTodos();
     ui.updatePreview();
     if (!isReadOnlyMode) {
         ui.enableMessageForm();
@@ -693,8 +727,12 @@ async function sendMessage(e) {
                                 let key;
                                 if (step.status === 'thinking') {
                                     key = `${step.iteration}-thinking`;
+                                } else if (step.tool_call_id) {
+                                    // 工具步骤：使用 tool_call_id 作为 key（覆盖 calling/executing/completed）
+                                    key = step.tool_call_id;
                                 } else {
-                                    key = step.id || `${step.iteration}-${step.tool_call_id || step.tool_name}`;
+                                    // fallback（如果没有 tool_call_id）
+                                    key = `${step.iteration}-${step.tool_name}`;
                                 }
 
                                 if (!stepMap.has(key)) {
@@ -729,12 +767,16 @@ async function sendMessage(e) {
 
                     // 使用与 merge 逻辑一致的键策略：
                     // - thinking 步骤：使用 iteration-thinking 作为键（同一 iteration 的 thinking 只显示一个）
-                    // - tool 步骤：使用 iteration-tool_call_id 作为键
+                    // - tool 步骤：使用 tool_call_id 作为统一 key（确保同一工具的不同状态映射到同一个元素）
                     let key;
                     if (step.status === 'thinking') {
                         key = `${step.iteration}-thinking`;
+                    } else if (step.tool_call_id) {
+                        // 工具步骤：使用 tool_call_id 作为 key（覆盖 calling/executing/completed）
+                        key = step.tool_call_id;
                     } else {
-                        key = step.id || `${step.iteration}-${step.tool_call_id || step.tool_name}`;
+                        // fallback（如果没有 tool_call_id）
+                        key = `${step.iteration}-${step.tool_name}`;
                     }
 
                     // 检查是否已存在
@@ -809,6 +851,7 @@ async function sendMessage(e) {
                 // 移除 streaming 状态
                 aiDiv.classList.remove('streaming');
 
+                await ui.loadTodos();
                 ui.refreshPreview();
                 elements.messageInput.disabled = false;
                 elements.messageInput.focus();
@@ -1078,6 +1121,18 @@ function _updateStepStatus(stepDiv, step) {
     if (titleEl) {
         titleEl.textContent = _getStepDisplayName(step);
     }
+}
+
+/**
+ * 获取 todo 状态图标
+ */
+function _getTodoIcon(status) {
+    const icons = {
+        'pending': '⏳',
+        'in_progress': '🔄',
+        'completed': '✅'
+    };
+    return icons[status] || '•';
 }
 
 /**

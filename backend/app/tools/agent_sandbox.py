@@ -52,9 +52,7 @@ class AgentSandbox:
         """
         if tool_name not in self.tools:
             available = ", ".join(self.tools.keys())
-            raise ValueError(
-                f"未知的工具：{tool_name}。可用工具：{available}"
-            )
+            raise ValueError(f"未知的工具：{tool_name}。可用工具：{available}")
 
         tool = self.tools[tool_name]
         return await tool.execute(**arguments)

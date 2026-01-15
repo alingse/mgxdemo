@@ -16,13 +16,15 @@ router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
 @router.get("", response_model=list[SessionResponse])
 async def list_sessions(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """List all sessions for the current user."""
-    sessions = db.query(SessionModel).filter(
-        SessionModel.user_id == current_user.id
-    ).order_by(SessionModel.updated_at.desc()).all()
+    sessions = (
+        db.query(SessionModel)
+        .filter(SessionModel.user_id == current_user.id)
+        .order_by(SessionModel.updated_at.desc())
+        .all()
+    )
     return sessions
 
 
@@ -30,13 +32,10 @@ async def list_sessions(
 async def create_session(
     session_create: SessionCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Create a new session."""
-    db_session = SessionModel(
-        user_id=current_user.id,
-        title=session_create.title
-    )
+    db_session = SessionModel(user_id=current_user.id, title=session_create.title)
     db.add(db_session)
     db.commit()
     db.refresh(db_session)
@@ -52,32 +51,28 @@ async def create_session(
 async def get_session(
     session_id: str,
     current_user: User | None = Depends(get_current_user_optional),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get a session by ID. Allows public access if is_public=True."""
-    session = db.query(SessionModel).filter(
-        SessionModel.id == session_id
-    ).first()
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
     # 检查权限：所有者或公开会话
     is_owner = current_user and current_user.id == session.user_id
     if not is_owner and not session.is_public:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
     # 加载消息
     from app.models.message import Message
-    messages = db.query(Message).filter(
-        Message.session_id == session_id
-    ).order_by(Message.created_at.asc()).all()
+
+    messages = (
+        db.query(Message)
+        .filter(Message.session_id == session_id)
+        .order_by(Message.created_at.asc())
+        .all()
+    )
 
     # 构建响应
     result = SessionDetail(
@@ -87,7 +82,7 @@ async def get_session(
         created_at=session.created_at,
         updated_at=session.updated_at,
         messages=messages,
-        is_owner=is_owner
+        is_owner=is_owner,
     )
     return result
 
@@ -97,19 +92,17 @@ async def update_session(
     session_id: str,
     session_update: SessionUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Update a session (title, is_public, etc.)."""
-    session = db.query(SessionModel).filter(
-        SessionModel.id == session_id,
-        SessionModel.user_id == current_user.id
-    ).first()
+    session = (
+        db.query(SessionModel)
+        .filter(SessionModel.id == session_id, SessionModel.user_id == current_user.id)
+        .first()
+    )
 
     if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
     # Update fields if provided
     if session_update.title is not None:
@@ -125,21 +118,17 @@ async def update_session(
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_session(
-    session_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    session_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """Delete a session."""
-    session = db.query(SessionModel).filter(
-        SessionModel.id == session_id,
-        SessionModel.user_id == current_user.id
-    ).first()
+    session = (
+        db.query(SessionModel)
+        .filter(SessionModel.id == session_id, SessionModel.user_id == current_user.id)
+        .first()
+    )
 
     if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
     # Delete sandbox
     sandbox_service = get_sandbox_service()
@@ -151,36 +140,24 @@ async def delete_session(
 
 @router.get("/{session_id}/todos")
 async def get_session_todos(
-    session_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    session_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """获取 session 的 TODO 列表（模仿 Claude TodoWrite 格式）"""
     # 验证 session 归属
-    session = db.query(SessionModel).filter(
-        SessionModel.id == session_id,
-        SessionModel.user_id == current_user.id
-    ).first()
+    session = (
+        db.query(SessionModel)
+        .filter(SessionModel.id == session_id, SessionModel.user_id == current_user.id)
+        .first()
+    )
 
     if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
     # 获取 TODO 快照
-    snapshot = db.query(TodoSnapshot).filter(
-        TodoSnapshot.session_id == session_id
-    ).first()
+    snapshot = db.query(TodoSnapshot).filter(TodoSnapshot.session_id == session_id).first()
 
     if not snapshot:
-        return {
-            "todos": [],
-            "total": 0,
-            "completed": 0,
-            "in_progress": 0,
-            "pending": 0
-        }
+        return {"todos": [], "total": 0, "completed": 0, "in_progress": 0, "pending": 0}
 
     # 解析 JSON
     todos = json.loads(snapshot.todos_json)
@@ -191,16 +168,12 @@ async def get_session_todos(
         "total": len(todos),
         "completed": sum(1 for t in todos if t.get("status") == "completed"),
         "in_progress": sum(1 for t in todos if t.get("status") == "in_progress"),
-        "pending": sum(1 for t in todos if t.get("status") == "pending")
+        "pending": sum(1 for t in todos if t.get("status") == "pending"),
     }
 
 
 @router.websocket("/ws/{session_id}")
-async def websocket_session(
-    session_id: str,
-    websocket: WebSocket,
-    db: Session = Depends(get_db)
-):
+async def websocket_session(session_id: str, websocket: WebSocket, db: Session = Depends(get_db)):
     """WebSocket endpoint for real-time session updates."""
     await websocket.accept()
 

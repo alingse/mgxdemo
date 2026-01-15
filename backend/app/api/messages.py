@@ -1,12 +1,11 @@
-# -*- coding: utf-8 -*-
+import asyncio
 import json
 import logging
-import asyncio
 import time
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_current_user_optional
@@ -30,7 +29,7 @@ _MAX_AGENT_ITERATIONS = 100
 
 # 全局事件队列（生产环境应使用Redis）
 # 结构: {session_id: asyncio.Queue}
-_event_queues: Dict[str, asyncio.Queue] = {}
+_event_queues: dict[str, asyncio.Queue] = {}
 
 
 def get_event_queue(session_id: str) -> asyncio.Queue:
@@ -125,14 +124,16 @@ def _convert_tool_calls_to_api_format(tool_calls_data: Any) -> list[dict] | None
                 if "function" in item:
                     api_format.append(item)
                 elif "name" in item and "arguments" in item:
-                    api_format.append({
-                        "id": item["id"],
-                        "type": "function",
-                        "function": {
-                            "name": item["name"],
-                            "arguments": json.dumps(item["arguments"], ensure_ascii=False)
+                    api_format.append(
+                        {
+                            "id": item["id"],
+                            "type": "function",
+                            "function": {
+                                "name": item["name"],
+                                "arguments": json.dumps(item["arguments"], ensure_ascii=False),
+                            },
                         }
-                    })
+                    )
 
         return api_format if api_format else None
     except (json.JSONDecodeError, TypeError, KeyError) as e:
@@ -142,38 +143,29 @@ def _convert_tool_calls_to_api_format(tool_calls_data: Any) -> list[dict] | None
 
 def _verify_session_access(session_id: str, user_id: int, db: Session) -> SessionModel:
     """验证用户是否有权限访问该会话。"""
-    session = db.query(SessionModel).filter(
-        SessionModel.id == session_id,
-        SessionModel.user_id == user_id
-    ).first()
+    session = (
+        db.query(SessionModel)
+        .filter(SessionModel.id == session_id, SessionModel.user_id == user_id)
+        .first()
+    )
 
     if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
     return session
 
 
 def _verify_session_access_with_read_only(
-    session_id: str,
-    user: User | None,
-    db: Session
+    session_id: str, user: User | None, db: Session
 ) -> tuple[SessionModel, bool]:
     """验证会话访问权限，返回 (session, is_read_only)
 
     支持公开会话的只读访问。
     """
-    session = db.query(SessionModel).filter(
-        SessionModel.id == session_id
-    ).first()
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
     # 所有者访问：完整权限
     if user and user.id == session.user_id:
@@ -184,10 +176,7 @@ def _verify_session_access_with_read_only(
         return session, True
 
     # 私密会话，非所有者：拒绝访问
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Session not found"
-    )
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
 
 def _save_execution_step(
@@ -203,7 +192,7 @@ def _save_execution_step(
     tool_call_id: str = None,
     tool_result: str = None,
     tool_error: str = None,
-    progress: float = None
+    progress: float = None,
 ) -> AgentExecutionStep:
     """保存执行步骤到数据库，并推送SSE事件
 
@@ -222,7 +211,7 @@ def _save_execution_step(
         tool_call_id=tool_call_id,
         tool_result=tool_result,
         tool_error=tool_error,
-        progress=progress
+        progress=progress,
     )
     db.add(step)
     db.commit()
@@ -232,10 +221,7 @@ def _save_execution_step(
     queue = get_event_queue(session_id)
     try:
         # 构建事件数据
-        event_data = {
-            "type": "step",
-            "data": step.to_dict()
-        }
+        event_data = {"type": "step", "data": step.to_dict()}
 
         # 根据状态设置事件类型
         if status == ExecutionStatus.THINKING:
@@ -254,11 +240,7 @@ def _save_execution_step(
             event_type = "step"
 
         # 非阻塞推送（如果队列满则丢弃最旧的事件，保留最新的）
-        event = {
-            "data": event_data,
-            "event": event_type,
-            "id": f"step_{step.id}"
-        }
+        event = {"data": event_data, "event": event_type, "id": f"step_{step.id}"}
         if _emit_event_nonblocking(queue, event, f"{event_type} for session {session_id}"):
             logger.info(f"[SSE] Emitted {event_type} for session {session_id}")
 
@@ -269,10 +251,7 @@ def _save_execution_step(
 
 
 async def _build_contextual_user_prompt(
-    session_id: str,
-    user_id: int,
-    user_message: str,
-    db: Session
+    session_id: str, user_id: int, user_message: str, db: Session
 ) -> str:
     """构建包含上下文的用户提示词。"""
     context_parts = []
@@ -289,15 +268,20 @@ async def _build_contextual_user_prompt(
         logger.warning(f"Failed to list files for context: {e}")
 
     # 2. 添加历史TODO状态
-    pending_todos = db.query(Todo).filter(
-        Todo.session_id == session_id,
-        Todo.completed.is_(False)
-    ).order_by(Todo.created_at.asc()).all()
+    pending_todos = (
+        db.query(Todo)
+        .filter(Todo.session_id == session_id, Todo.completed.is_(False))
+        .order_by(Todo.created_at.asc())
+        .all()
+    )
 
-    completed_todos = db.query(Todo).filter(
-        Todo.session_id == session_id,
-        Todo.completed.is_(True)
-    ).order_by(Todo.completed_at.desc()).limit(5).all()
+    completed_todos = (
+        db.query(Todo)
+        .filter(Todo.session_id == session_id, Todo.completed.is_(True))
+        .order_by(Todo.completed_at.desc())
+        .limit(5)
+        .all()
+    )
 
     if pending_todos:
         context_parts.append(f"## 待办任务（{len(pending_todos)}项）")
@@ -310,10 +294,13 @@ async def _build_contextual_user_prompt(
         context_parts.append("")
 
     # 3. 添加最近的操作摘要
-    recent_messages = db.query(Message).filter(
-        Message.session_id == session_id,
-        Message.role == MessageRole.SYSTEM
-    ).order_by(Message.created_at.desc()).limit(3).all()
+    recent_messages = (
+        db.query(Message)
+        .filter(Message.session_id == session_id, Message.role == MessageRole.SYSTEM)
+        .order_by(Message.created_at.desc())
+        .limit(3)
+        .all()
+    )
 
     if recent_messages:
         context_parts.append("## 最近操作")
@@ -331,15 +318,14 @@ async def _build_contextual_user_prompt(
     return "\n".join(context_parts)
 
 
-async def _prepare_ai_messages(
-    session_id: str,
-    user_id: int,
-    db: Session
-) -> list[dict]:
+async def _prepare_ai_messages(session_id: str, user_id: int, db: Session) -> list[dict]:
     """准备发送给 AI 的消息列表。"""
-    messages = db.query(Message).filter(
-        Message.session_id == session_id
-    ).order_by(Message.created_at.asc()).all()
+    messages = (
+        db.query(Message)
+        .filter(Message.session_id == session_id)
+        .order_by(Message.created_at.asc())
+        .all()
+    )
 
     ai_messages = [{"role": "system", "content": _SYSTEM_PROMPT}]
 
@@ -349,10 +335,7 @@ async def _prepare_ai_messages(
         if msg.role == MessageRole.USER:
             # 用户消息：添加上下文信息
             msg_dict["content"] = await _build_contextual_user_prompt(
-                session_id=session_id,
-                user_id=user_id,
-                user_message=msg.content,
-                db=db
+                session_id=session_id, user_id=user_id, user_message=msg.content, db=db
             )
         elif msg.role == MessageRole.ASSISTANT and msg.tool_calls:
             # Assistant 消息有 tool_calls 时，必须添加 reasoning_content
@@ -377,17 +360,20 @@ async def _run_agent_loop(
     session_id: str,
     user_id: int,
     db: Session,
-    assistant_message: Message
+    assistant_message: Message,
 ) -> tuple:
     """运行 AI agent 循环（支持流式推理）。"""
     # 添加开始日志
-    logger.info(f"=== _run_agent_loop START: session={session_id}, message_id={assistant_message.id} ===")
+    logger.info(
+        f"=== _run_agent_loop START: session={session_id}, message_id={assistant_message.id} ==="
+    )
 
     tools_schema = agent_sandbox.get_tools_schema()
     logger.info(f"Tools schema: {len(tools_schema)} tools available")
     final_reasoning = None
     final_tool_calls = None
     assistant_response = ""
+    accumulated_reasoning = ""
 
     for iteration in range(1, _MAX_AGENT_ITERATIONS + 1):
         # 1. 先创建空的 THINKING 状态（让前端立即知道开始思考）
@@ -398,11 +384,13 @@ async def _run_agent_loop(
             user_id=user_id,
             iteration=iteration,
             status=ExecutionStatus.THINKING,
-            progress=min(10 + iteration * 5, 80)
+            progress=min(10 + iteration * 5, 80),
         )
 
         # 打印调试信息：发送给 API 的消息列表
-        logger.info(f"=== Iteration {iteration}: Sending {len(ai_messages)} messages to DeepSeek API ===")
+        logger.info(
+            f"=== Iteration {iteration}: Sending {len(ai_messages)} messages to DeepSeek API ==="
+        )
         for idx, msg in enumerate(ai_messages):
             logger.info(
                 f"Message {idx}: role={msg.get('role')}, "
@@ -411,7 +399,7 @@ async def _run_agent_loop(
                 f"content_length={len(msg.get('content', ''))}"
             )
             # 如果是 assistant 消息且有 tool_calls，打印详细信息
-            if msg.get('role') == 'assistant' and 'tool_calls' in msg:
+            if msg.get("role") == "assistant" and "tool_calls" in msg:
                 logger.warning(
                     f"  Assistant message with tool_calls: "
                     f"reasoning_content={'reasoning_content' in msg}, "
@@ -429,8 +417,7 @@ async def _run_agent_loop(
         try:
             # 使用流式 API
             async for event in ai_service.chat_with_tools_streaming(
-                messages=ai_messages,
-                tools=tools_schema
+                messages=ai_messages, tools=tools_schema
             ):
                 event_type = event.get("type")
 
@@ -439,7 +426,10 @@ async def _run_agent_loop(
                     accumulated_reasoning = event.get("reasoning_content", "")
                     delta_content = event.get("content", "")
 
-                    logger.info(f"=== Reasoning delta: {len(delta_content)} chars, total: {len(accumulated_reasoning)} ===")
+                    logger.info(
+                        f"=== Reasoning delta: {len(delta_content)} chars, "
+                        f"total: {len(accumulated_reasoning)} ==="
+                    )
 
                     # 更新数据库中的 reasoning_content
                     step.reasoning_content = accumulated_reasoning
@@ -449,11 +439,8 @@ async def _run_agent_loop(
                     queue = get_event_queue(session_id)
                     delta_event = {
                         "event": "thinking_delta",
-                        "data": {
-                            "type": "step",
-                            "data": step.to_dict()
-                        },
-                        "id": f"step_{step.id}_delta"
+                        "data": {"type": "step", "data": step.to_dict()},
+                        "id": f"step_{step.id}_delta",
                     }
                     _emit_event_nonblocking(queue, delta_event, "thinking_delta")
 
@@ -473,7 +460,7 @@ async def _run_agent_loop(
                         iteration=iteration,
                         status=ExecutionStatus.TOOL_CALLING,
                         reasoning_content=accumulated_reasoning,
-                        progress=min(20 + iteration * 8, 90)
+                        progress=min(20 + iteration * 8, 90),
                     )
 
                 elif event_type == "done":
@@ -485,7 +472,8 @@ async def _run_agent_loop(
                     logger.info(f"=== Iteration {iteration}: streaming completed ===")
                     logger.info(f"  Response length: {len(assistant_response)}")
                     logger.info(f"  Tool calls count: {len(tool_calls) if tool_calls else 0}")
-                    logger.info(f"  Reasoning length: {len(accumulated_reasoning)}")
+                    reasoning_len = len(accumulated_reasoning) if accumulated_reasoning else 0
+                    logger.info(f"  Reasoning length: {reasoning_len}")
                     break
 
         except Exception as e:
@@ -506,17 +494,16 @@ async def _run_agent_loop(
             iteration=iteration,
             status=ExecutionStatus.THINKING,
             reasoning_content=accumulated_reasoning,
-            progress=min(15 + iteration * 5, 85)
+            progress=min(15 + iteration * 5, 85),
         )
 
         if tool_calls:
-            final_tool_calls = tool_calls
+            if final_tool_calls is None:
+                final_tool_calls = []
+            final_tool_calls.extend(tool_calls)
 
         # 构建助手消息历史
-        assistant_msg = {
-            "role": "assistant",
-            "content": assistant_response or ""
-        }
+        assistant_msg = {"role": "assistant", "content": assistant_response or ""}
 
         # DeepSeek API 要求：如果有 tool_calls，必须包含 reasoning_content 字段
         if tool_calls:
@@ -562,7 +549,7 @@ async def _run_agent_loop(
                 tool_name=tool_name,
                 tool_arguments=tool_arguments_json,  # 保存原始 JSON 字符串
                 tool_call_id=tool_call.get("id"),
-                progress=min(20 + iteration * 8, 90)
+                progress=min(20 + iteration * 8, 90),
             )
 
             try:
@@ -576,12 +563,12 @@ async def _run_agent_loop(
                     tool_name=tool_name,
                     tool_arguments=tool_arguments_json,  # 保存原始 JSON 字符串
                     tool_call_id=tool_call.get("id"),
-                    progress=min(25 + iteration * 8, 92)
+                    progress=min(25 + iteration * 8, 92),
                 )
 
                 result = await agent_sandbox.execute_tool(
                     tool_name,
-                    tool_arguments  # 传递解析后的字典
+                    tool_arguments,  # 传递解析后的字典
                 )
 
                 _save_execution_step(
@@ -595,7 +582,7 @@ async def _run_agent_loop(
                     tool_arguments=tool_arguments_json,  # 保存原始 JSON 字符串
                     tool_call_id=tool_call.get("id"),
                     tool_result=result[:1000] if result else None,
-                    progress=min(30 + iteration * 8, 95)
+                    progress=min(30 + iteration * 8, 95),
                 )
 
                 # 保存 TOOL 消息到数据库
@@ -603,16 +590,18 @@ async def _run_agent_loop(
                     session_id=session_id,
                     role=MessageRole.TOOL,
                     content=str(result),
-                    tool_call_id=tool_call.get("id", "")
+                    tool_call_id=tool_call.get("id", ""),
                 )
                 db.add(tool_message)
                 db.commit()  # 立即提交，确保下次迭代能查询到此消息
 
-                ai_messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.get("id", ""),
-                    "content": str(result)
-                })
+                ai_messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call.get("id", ""),
+                        "content": str(result),
+                    }
+                )
                 logger.info(f"Tool {tool_name} executed")
 
             except Exception as e:
@@ -630,7 +619,7 @@ async def _run_agent_loop(
                     tool_arguments=tool_arguments_json,  # 保存原始 JSON 字符串
                     tool_call_id=tool_call.get("id"),
                     tool_error=error_msg,
-                    progress=min(30 + iteration * 8, 95)
+                    progress=min(30 + iteration * 8, 95),
                 )
 
                 # 保存 TOOL 错误消息到数据库
@@ -638,16 +627,14 @@ async def _run_agent_loop(
                     session_id=session_id,
                     role=MessageRole.TOOL,
                     content=error_msg,
-                    tool_call_id=tool_call.get("id", "")
+                    tool_call_id=tool_call.get("id", ""),
                 )
                 db.add(tool_message)
                 db.commit()  # 立即提交，确保下次迭代能查询到此消息
 
-                ai_messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.get("id", ""),
-                    "content": error_msg
-                })
+                ai_messages.append(
+                    {"role": "tool", "tool_call_id": tool_call.get("id", ""), "content": error_msg}
+                )
 
     # 保存最终完成状态
     _save_execution_step(
@@ -657,7 +644,7 @@ async def _run_agent_loop(
         user_id=user_id,
         iteration=iteration,
         status=ExecutionStatus.COMPLETED,
-        progress=100.0
+        progress=100.0,
     )
 
     logger.info(f"=== _run_agent_loop END: session={session_id}, total_iterations={iteration} ===")
@@ -669,16 +656,17 @@ async def _run_agent_loop(
 async def list_messages(
     session_id: str,
     current_user: User | None = Depends(get_current_user_optional),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> list[Message]:
     """获取会话中的所有消息。支持公开会话的只读访问。"""
-    session, is_read_only = _verify_session_access_with_read_only(
-        session_id, current_user, db
-    )
+    session, is_read_only = _verify_session_access_with_read_only(session_id, current_user, db)
 
-    return db.query(Message).filter(
-        Message.session_id == session_id
-    ).order_by(Message.created_at.asc()).all()
+    return (
+        db.query(Message)
+        .filter(Message.session_id == session_id)
+        .order_by(Message.created_at.asc())
+        .all()
+    )
 
 
 @router.post("", response_model=MessageResponse)
@@ -687,7 +675,7 @@ async def create_message(
     message_create: MessageCreate,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> Message:
     """创建新消息并获取 AI 响应（使用后台任务）。
 
@@ -697,13 +685,11 @@ async def create_message(
     3. 在后台任务中运行 agent 循环（推送 SSE 事件）
     4. 立即返回 AI 消息（前端开始监听 SSE）
     """
-    session = _verify_session_access(session_id, current_user.id, db)
+    _verify_session_access(session_id, current_user.id, db)
 
     # 1. 保存用户消息
     user_message = Message(
-        session_id=session_id,
-        role=MessageRole.USER,
-        content=message_create.content
+        session_id=session_id, role=MessageRole.USER, content=message_create.content
     )
     db.add(user_message)
     db.commit()
@@ -719,7 +705,7 @@ async def create_message(
             role=MessageRole.ASSISTANT,
             content="",
             reasoning_content=None,
-            tool_calls=None
+            tool_calls=None,
         )
         db.add(assistant_message)
         db.commit()
@@ -735,6 +721,7 @@ async def create_message(
             """后台运行 agent 循环"""
             # 注意：需要创建新的 DB session，因为后台任务在不同的上下文中运行
             from app.database import SessionLocal
+
             bg_db = SessionLocal()
 
             try:
@@ -751,9 +738,9 @@ async def create_message(
                 )
 
                 # 更新消息内容
-                bg_assistant_message = bg_db.query(Message).filter(
-                    Message.id == assistant_message.id
-                ).first()
+                bg_assistant_message = (
+                    bg_db.query(Message).filter(Message.id == assistant_message.id).first()
+                )
 
                 if bg_assistant_message:
                     bg_assistant_message.content = assistant_response or ""
@@ -765,34 +752,28 @@ async def create_message(
                     bg_db.commit()
 
                 # 更新会话时间戳
-                bg_session = bg_db.query(SessionModel).filter(
-                    SessionModel.id == session_id
-                ).first()
+                bg_session = bg_db.query(SessionModel).filter(SessionModel.id == session_id).first()
                 if bg_session:
                     bg_session.updated_at = datetime.utcnow()
                     bg_db.commit()
 
                 # 推送完成事件
                 queue = get_event_queue(session_id)
-                _emit_event_nonblocking(queue, {
-                    "event": "done",
-                    "data": {"done": True}
-                }, "done")
+                _emit_event_nonblocking(queue, {"event": "done", "data": {"done": True}}, "done")
 
             except Exception as e:
                 logger.error(f"Agent loop failed: {e}", exc_info=True)
 
                 # 推送错误事件
                 queue = get_event_queue(session_id)
-                _emit_event_nonblocking(queue, {
-                    "event": "error",
-                    "data": {"error": str(e)}
-                }, "error")
+                _emit_event_nonblocking(
+                    queue, {"event": "error", "data": {"error": str(e)}}, "error"
+                )
 
                 # 保存错误消息到数据库
-                bg_assistant_message = bg_db.query(Message).filter(
-                    Message.id == assistant_message.id
-                ).first()
+                bg_assistant_message = (
+                    bg_db.query(Message).filter(Message.id == assistant_message.id).first()
+                )
 
                 if bg_assistant_message:
                     bg_assistant_message.content = f"AI服务出错：{str(e)}"
@@ -810,9 +791,7 @@ async def create_message(
         logger.error(f"  Error: {e}", exc_info=True)
 
         assistant_message = Message(
-            session_id=session_id,
-            role=MessageRole.ASSISTANT,
-            content=f"启动 AI 服务失败：{str(e)}"
+            session_id=session_id, role=MessageRole.ASSISTANT, content=f"启动 AI 服务失败：{str(e)}"
         )
         db.add(assistant_message)
         db.commit()
@@ -826,23 +805,25 @@ async def create_message(
 async def get_latest_execution_steps(
     session_id: str,
     current_user: User | None = Depends(get_current_user_optional),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> list[dict]:
     """获取会话中最新一条消息的执行步骤（用于轮询最新进度）。
 
     使用 /_internal/ 前缀避免与 /{message_id}/execution-steps 路由冲突。
     """
-    session, is_read_only = _verify_session_access_with_read_only(
-        session_id, current_user, db
+    session, is_read_only = _verify_session_access_with_read_only(session_id, current_user, db)
+
+    latest_message = (
+        db.query(Message)
+        .filter(Message.session_id == session_id, Message.role == MessageRole.ASSISTANT)
+        .order_by(Message.created_at.desc())
+        .first()
     )
 
-    latest_message = db.query(Message).filter(
-        Message.session_id == session_id,
-        Message.role == MessageRole.ASSISTANT
-    ).order_by(Message.created_at.desc()).first()
-
     if not latest_message:
-        logger.info(f"[get_latest_execution_steps] No assistant message found for session {session_id}")
+        logger.info(
+            f"[get_latest_execution_steps] No assistant message found for session {session_id}"
+        )
         return []
 
     logger.info(
@@ -850,10 +831,15 @@ async def get_latest_execution_steps(
         f"created_at={latest_message.created_at}"
     )
 
-    steps = db.query(AgentExecutionStep).filter(
-        AgentExecutionStep.session_id == session_id,
-        AgentExecutionStep.message_id == latest_message.id
-    ).order_by(AgentExecutionStep.created_at.asc()).all()
+    steps = (
+        db.query(AgentExecutionStep)
+        .filter(
+            AgentExecutionStep.session_id == session_id,
+            AgentExecutionStep.message_id == latest_message.id,
+        )
+        .order_by(AgentExecutionStep.created_at.asc())
+        .all()
+    )
 
     logger.info(
         f"[get_latest_execution_steps] Found {len(steps)} steps for message {latest_message.id}"
@@ -867,17 +853,19 @@ async def get_execution_steps(
     session_id: str,
     message_id: int,
     current_user: User | None = Depends(get_current_user_optional),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> list[dict]:
     """获取指定消息的所有执行步骤（实时进度）。"""
-    session, is_read_only = _verify_session_access_with_read_only(
-        session_id, current_user, db
-    )
+    session, is_read_only = _verify_session_access_with_read_only(session_id, current_user, db)
 
-    steps = db.query(AgentExecutionStep).filter(
-        AgentExecutionStep.session_id == session_id,
-        AgentExecutionStep.message_id == message_id
-    ).order_by(AgentExecutionStep.created_at.asc()).all()
+    steps = (
+        db.query(AgentExecutionStep)
+        .filter(
+            AgentExecutionStep.session_id == session_id, AgentExecutionStep.message_id == message_id
+        )
+        .order_by(AgentExecutionStep.created_at.asc())
+        .all()
+    )
 
     return [step.to_dict() for step in steps]
 
@@ -886,7 +874,7 @@ async def get_execution_steps(
 async def stream_execution_steps(
     session_id: str,
     current_user: User | None = Depends(get_current_user_optional),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """SSE流端点，实时推送执行步骤
 
@@ -895,9 +883,7 @@ async def stream_execution_steps(
     - 历史数据需要通过 /execution-steps 端点获取
     """
 
-    session, is_read_only = _verify_session_access_with_read_only(
-        session_id, current_user, db
-    )
+    session, is_read_only = _verify_session_access_with_read_only(session_id, current_user, db)
 
     async def event_generator():
         queue = get_event_queue(session_id)
@@ -905,25 +891,33 @@ async def stream_execution_steps(
 
         try:
             # 连接建立时，发送当前最新状态
-            latest_message = db.query(Message).filter(
-                Message.session_id == session_id,
-                Message.role == MessageRole.ASSISTANT
-            ).order_by(Message.created_at.desc()).first()
+            latest_message = (
+                db.query(Message)
+                .filter(Message.session_id == session_id, Message.role == MessageRole.ASSISTANT)
+                .order_by(Message.created_at.desc())
+                .first()
+            )
 
             if latest_message:
-                latest_step = db.query(AgentExecutionStep).filter(
-                    AgentExecutionStep.message_id == latest_message.id
-                ).order_by(AgentExecutionStep.created_at.desc()).first()
+                latest_step = (
+                    db.query(AgentExecutionStep)
+                    .filter(AgentExecutionStep.message_id == latest_message.id)
+                    .order_by(AgentExecutionStep.created_at.desc())
+                    .first()
+                )
 
-                if latest_step and latest_step.status not in [ExecutionStatus.COMPLETED, ExecutionStatus.FAILED]:
+                if latest_step and latest_step.status not in [
+                    ExecutionStatus.COMPLETED,
+                    ExecutionStatus.FAILED,
+                ]:
                     # 发送"正在执行中"的同步信号
                     yield {
                         "event": "sync",
                         "data": {
                             "message_id": latest_message.id,
                             "latest_step": latest_step.to_dict(),
-                            "is_running": True
-                        }
+                            "is_running": True,
+                        },
                     }
 
             logger.info(f"[SSE] Stream started for session {session_id}")
@@ -934,7 +928,7 @@ async def stream_execution_steps(
                     # 等待事件（带超时，用于发送心跳）
                     event = await asyncio.wait_for(
                         queue.get(),
-                        timeout=15.0  # 15秒超时
+                        timeout=15.0,  # 15秒超时
                     )
 
                     yield event
@@ -944,21 +938,18 @@ async def stream_execution_steps(
                         logger.info(f"[SSE] Stream completed for session {session_id}")
                         break
 
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     # 发送心跳ping，防止连接超时
                     ping_counter += 1
                     yield {
                         "event": "ping",
                         "data": {"ping": ping_counter, "timestamp": time.time()},
-                        "id": f"ping_{ping_counter}"
+                        "id": f"ping_{ping_counter}",
                     }
 
         except Exception as e:
             logger.error(f"[SSE] Error in event generator: {e}")
-            yield {
-                "event": "error",
-                "data": {"error": str(e)}
-            }
+            yield {"event": "error", "data": {"error": str(e)}}
 
         finally:
             # 清理

@@ -26,20 +26,16 @@ class ReadTool(AgentTool):
             "properties": {
                 "filename": {
                     "type": "string",
-                    "description": "要读取的文件名，例如：index.html, style.css"
+                    "description": "要读取的文件名，例如：index.html, style.css",
                 }
             },
-            "required": ["filename"]
+            "required": ["filename"],
         }
 
     async def execute(self, filename: str) -> str:
         """读取文件"""
         try:
-            content = await sandbox_service.read_file(
-                self.user_id,
-                self.session_id,
-                filename
-            )
+            content = await sandbox_service.read_file(self.user_id, self.session_id, filename)
             return f"文件 {filename} 的内容：\n\n{content}"
         except FileNotFoundError:
             return f"错误：文件 {filename} 不存在。"

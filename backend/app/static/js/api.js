@@ -161,6 +161,10 @@ class ApiClient {
     async getExecutionSteps(sessionId, messageId) {
         return this.request(`/api/sessions/${sessionId}/messages/${messageId}/execution-steps`);
     }
+
+    async getTodos(sessionId) {
+        return this.request(`/api/sessions/${sessionId}/todos`);
+    }
 }
 
 // Create global API client instance

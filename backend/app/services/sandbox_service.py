@@ -23,7 +23,7 @@ class SandboxService:
     def _validate_filename(self, filename: str) -> bool:
         """Validate filename to prevent path traversal attacks."""
         # Only allow alphanumeric, dash, underscore, and dot
-        return bool(re.match(r'^[\w\-\.]+$', filename)) and filename not in ('.', '..')
+        return bool(re.match(r"^[\w\-\.]+$", filename)) and filename not in (".", "..")
 
     def _get_sandbox_size(self, sandbox_path: Path) -> int:
         """Calculate total size of all files in the sandbox directory."""
@@ -83,7 +83,7 @@ body {
 h1 {
     color: #333;
 }
-"""
+""",
         }
 
         for filename, content in default_files.items():
@@ -119,7 +119,7 @@ h1 {
             raise ValueError(f"Invalid filename: {filename}")
 
         # Check file size
-        content_size = len(content.encode('utf-8'))
+        content_size = len(content.encode("utf-8"))
         if content_size > self.max_file_size:
             raise ValueError(f"File size exceeds limit of {settings.max_file_size_mb}MB")
 
@@ -142,7 +142,7 @@ h1 {
                 f"new file: {content_size / (1024 * 1024):.2f}MB)"
             )
 
-        async with aiofiles.open(file_path, mode='w') as f:
+        async with aiofiles.open(file_path, mode="w") as f:
             await f.write(content)
             await f.flush()  # 确保数据写入 OS，使文件立即可读
 
@@ -202,6 +202,7 @@ def get_sandbox_path(user_id: int, session_id: str) -> Path:
 # Module-level convenience functions for tools to use directly
 # These functions create a service instance on each call and delegate to it.
 # ============================================================================
+
 
 async def list_files(user_id: int, session_id: str) -> list[str]:
     """List all files in the sandbox."""

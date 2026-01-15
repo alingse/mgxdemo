@@ -21,11 +21,7 @@ class ListTool(AgentTool):
 
     @property
     def parameters(self) -> dict[str, Any]:
-        return {
-            "type": "object",
-            "properties": {},
-            "required": []
-        }
+        return {"type": "object", "properties": {}, "required": []}
 
     async def execute(self) -> str:
         """列出文件"""

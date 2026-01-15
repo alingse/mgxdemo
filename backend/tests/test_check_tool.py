@@ -1,4 +1,5 @@
 """CheckTool 测试用例"""
+
 import shutil
 import tempfile
 from pathlib import Path

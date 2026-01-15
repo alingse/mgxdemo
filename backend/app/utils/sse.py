@@ -1,7 +1,10 @@
 """Server-Sent Events (SSE) utilities."""
-from typing import AsyncGenerator, Any
+
 import json
 import logging
+from collections.abc import AsyncGenerator
+from typing import Any
+
 from fastapi.responses import StreamingResponse
 
 logger = logging.getLogger(__name__)
@@ -37,16 +40,15 @@ class SSEEvent:
             data_str = str(data)
 
         # 多行数据每行都要有 data: 前缀
-        for line in data_str.split('\n'):
+        for line in data_str.split("\n"):
             lines.append(f"data: {line}")
 
         lines.append("")  # 空行表示事件结束
-        return '\n'.join(lines) + '\n'
+        return "\n".join(lines) + "\n"
 
 
 async def stream_sse(
-    event_generator: AsyncGenerator[dict, None],
-    ping_interval: int = 15
+    event_generator: AsyncGenerator[dict, None], ping_interval: int = 15
 ) -> StreamingResponse:
     """创建SSE流响应
 
@@ -64,18 +66,12 @@ async def stream_sse(
                 yield SSEEvent.format(**event)
 
             # 发送完成事件
-            yield SSEEvent.format(
-                data={"done": True},
-                event="done"
-            )
+            yield SSEEvent.format(data={"done": True}, event="done")
 
         except Exception as e:
             logger.error(f"[SSE] Error in event stream: {e}", exc_info=True)
             # 发送错误事件
-            yield SSEEvent.format(
-                data={"error": str(e)},
-                event="error"
-            )
+            yield SSEEvent.format(data={"error": str(e)}, event="error")
 
     return StreamingResponse(
         event_stream(),
@@ -84,5 +80,5 @@ async def stream_sse(
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",  # 禁用Nginx缓冲
-        }
+        },
     )

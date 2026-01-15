@@ -12,19 +12,13 @@ class AIService(ABC):
         pass
 
     @abstractmethod
-    async def modify_files(
-        self,
-        instruction: str,
-        current_files: dict[str, str]
-    ) -> dict[str, str]:
+    async def modify_files(self, instruction: str, current_files: dict[str, str]) -> dict[str, str]:
         """Modify sandbox files based on instruction."""
         pass
 
     @abstractmethod
     async def chat_with_tools(
-        self,
-        messages: list[dict[str, str]],
-        tools: list[dict[str, Any]]
+        self, messages: list[dict[str, str]], tools: list[dict[str, Any]]
     ) -> tuple[str, list[dict[str, Any]], str | None]:
         """Chat with tool calling support.
 

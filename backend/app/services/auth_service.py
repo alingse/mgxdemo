@@ -22,9 +22,7 @@ class AuthService:
         # Create new user
         hashed_password = get_password_hash(user_create.password)
         db_user = User(
-            username=user_create.username,
-            email=user_create.email,
-            hashed_password=hashed_password
+            username=user_create.username, email=user_create.email, hashed_password=hashed_password
         )
         db.add(db_user)
         db.commit()

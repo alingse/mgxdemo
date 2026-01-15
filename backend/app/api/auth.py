@@ -43,7 +43,7 @@ async def login(user_login: UserLogin, db: Session = Depends(get_db)):
         value=access_token,
         httponly=True,
         secure=False,  # 开发环境用 False，生产环境应设为 True
-        samesite="lax"
+        samesite="lax",
     )
     return response
 

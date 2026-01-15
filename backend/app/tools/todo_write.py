@@ -80,9 +80,7 @@ class TodoWriteTool(AgentTool):
                 snapshot.todos_json = todos_json
             else:
                 # 创建新快照
-                snapshot = TodoSnapshot(
-                    session_id=self.session_id, todos_json=todos_json
-                )
+                snapshot = TodoSnapshot(session_id=self.session_id, todos_json=todos_json)
                 self.db.add(snapshot)
 
             self.db.commit()

@@ -37,14 +37,14 @@ class TodoTool(AgentTool):
                 "action": {
                     "type": "string",
                     "enum": ["add", "list", "mark_done", "clear"],
-                    "description": "操作类型"
+                    "description": "操作类型",
                 },
                 "task": {
                     "type": "string",
-                    "description": "任务描述（action为add或mark_done时需要）"
-                }
+                    "description": "任务描述（action为add或mark_done时需要）",
+                },
             },
-            "required": ["action"]
+            "required": ["action"],
         }
 
     async def execute(self, action: str, task: str = None) -> str:
@@ -69,20 +69,19 @@ class TodoTool(AgentTool):
 
     async def _add_task(self, task: str) -> str:
         """添加新任务"""
-        todo = Todo(
-            session_id=self.session_id,
-            task=task,
-            completed=False
-        )
+        todo = Todo(session_id=self.session_id, task=task, completed=False)
         self.db.add(todo)
         self.db.commit()
         return f"已添加任务：{task}"
 
     async def _list_tasks(self) -> str:
         """列出所有任务"""
-        todos = self.db.query(Todo).filter(
-            Todo.session_id == self.session_id
-        ).order_by(Todo.created_at).all()
+        todos = (
+            self.db.query(Todo)
+            .filter(Todo.session_id == self.session_id)
+            .order_by(Todo.created_at)
+            .all()
+        )
 
         if not todos:
             return "当前没有任务。"
@@ -96,11 +95,15 @@ class TodoTool(AgentTool):
     async def _mark_done(self, task: str) -> str:
         """标记任务完成"""
         # 查找任务（可以是完整匹配或部分匹配）
-        todo = self.db.query(Todo).filter(
-            Todo.session_id == self.session_id,
-            Todo.task.contains(task),
-            Todo.completed.is_(False)
-        ).first()
+        todo = (
+            self.db.query(Todo)
+            .filter(
+                Todo.session_id == self.session_id,
+                Todo.task.contains(task),
+                Todo.completed.is_(False),
+            )
+            .first()
+        )
 
         if not todo:
             return f"错误：未找到未完成的任务 '{task}'"
@@ -112,8 +115,6 @@ class TodoTool(AgentTool):
 
     async def _clear_tasks(self) -> str:
         """清除所有任务"""
-        deleted = self.db.query(Todo).filter(
-            Todo.session_id == self.session_id
-        ).delete()
+        deleted = self.db.query(Todo).filter(Todo.session_id == self.session_id).delete()
         self.db.commit()
         return f"已清除 {deleted} 个任务。"

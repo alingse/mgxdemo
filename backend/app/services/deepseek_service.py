@@ -17,7 +17,7 @@ def _load_system_prompt() -> str:
     """从文件加载系统提示词。"""
     prompt_file = Path(__file__).parent.parent / "prompts" / "deepseek_system_prompt.md"
     try:
-        with open(prompt_file, "r", encoding="utf-8") as f:
+        with open(prompt_file, encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
         logger.error(f"系统提示词文件未找到: {prompt_file}")
@@ -32,8 +32,7 @@ _DEEPSEEK_SYSTEM_PROMPT = _load_system_prompt()
 
 
 def _ensure_system_prompt(
-    messages: list[dict[str, str]],
-    system_prompt: str
+    messages: list[dict[str, str]], system_prompt: str
 ) -> list[dict[str, str]]:
     """确保消息列表以系统提示开头。"""
     if not messages:
@@ -61,14 +60,16 @@ def _build_tool_calls_history(tool_calls) -> list[dict[str, Any]]:
     """
     history = []
     for tool_call in tool_calls:
-        history.append({
-            "id": tool_call.id,
-            "type": "function",
-            "function": {
-                "name": tool_call.function.name,
-                "arguments": tool_call.function.arguments  # 保持原始 JSON 字符串
+        history.append(
+            {
+                "id": tool_call.id,
+                "type": "function",
+                "function": {
+                    "name": tool_call.function.name,
+                    "arguments": tool_call.function.arguments,  # 保持原始 JSON 字符串
+                },
             }
-        })
+        )
     return history
 
 
@@ -95,8 +96,7 @@ class DeepSeekService(AIService):
             enable_reasoning: 是否启用思考模式（默认 True）
         """
         self.client = AsyncOpenAI(
-            api_key=settings.deepseek_api_key,
-            base_url=settings.deepseek_base_url
+            api_key=settings.deepseek_api_key, base_url=settings.deepseek_base_url
         )
         self.enable_reasoning = enable_reasoning
 
@@ -107,8 +107,7 @@ class DeepSeekService(AIService):
             self.model = settings.deepseek_model or "deepseek-chat"
 
         logger.info(
-            f"DeepSeek service initialized with model: {self.model}, "
-            f"reasoning: {enable_reasoning}"
+            f"DeepSeek service initialized with model: {self.model}, reasoning: {enable_reasoning}"
         )
 
     async def chat(self, messages: list[dict]) -> AsyncIterator[str]:
@@ -117,17 +116,13 @@ class DeepSeekService(AIService):
             model=self.model,
             messages=messages,
             stream=True,
-            **({"extra_body": {"thinking": {"type": "enabled"}}} if self.enable_reasoning else {})
+            **({"extra_body": {"thinking": {"type": "enabled"}}} if self.enable_reasoning else {}),
         )
         async for chunk in stream:
             if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
 
-    async def modify_files(
-        self,
-        instruction: str,
-        current_files: dict[str, str]
-    ) -> dict[str, str]:
+    async def modify_files(self, instruction: str, current_files: dict[str, str]) -> dict[str, str]:
         """修改文件（使用思考模式）"""
         system_prompt = """你是一个网页开发助手。用户会要求你修改他们的网页项目中的文件。
 
@@ -157,20 +152,20 @@ class DeepSeekService(AIService):
         current_files_str = json.dumps(current_files, indent=2)
         messages = [
             {"role": "system", "content": system_prompt.format(current_files=current_files_str)},
-            {"role": "user", "content": instruction}
+            {"role": "user", "content": instruction},
         ]
 
         response = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=0.7,
-            **({"extra_body": {"thinking": {"type": "enabled"}}} if self.enable_reasoning else {})
+            **({"extra_body": {"thinking": {"type": "enabled"}}} if self.enable_reasoning else {}),
         )
 
         content = response.choices[0].message.content
 
         # 如果有思考内容，记录日志
-        if hasattr(response.choices[0].message, 'reasoning_content'):
+        if hasattr(response.choices[0].message, "reasoning_content"):
             reasoning = response.choices[0].message.reasoning_content
             logger.info(f"DeepSeek reasoning for modify_files: {reasoning[:500]}...")
 
@@ -187,9 +182,7 @@ class DeepSeekService(AIService):
         return {}
 
     async def chat_with_tools(
-        self,
-        messages: list[dict[str, str]],
-        tools: list[dict[str, Any]]
+        self, messages: list[dict[str, str]], tools: list[dict[str, Any]]
     ) -> tuple[str, list[dict[str, Any]], str | None]:
         """使用工具调用的对话（支持思考模式）。
 
@@ -223,23 +216,27 @@ class DeepSeekService(AIService):
                 if role == "assistant" and has_tc:
                     if not has_rc:
                         logger.error(
-                            f"❌ 消息 {idx}: role=assistant, 有 tool_calls 但缺少 reasoning_content!"
+                            f"❌ 消息 {idx}: role=assistant, 有 tool_calls "
+                            f"但缺少 reasoning_content!"
                         )
                     else:
                         rc_value = msg.get("reasoning_content", "")
                         logger.info(
-                            f"✓ 消息 {idx}: role=assistant, 有 tool_calls, reasoning_content长度={len(rc_value)}"
+                            f"✓ 消息 {idx}: role=assistant, 有 tool_calls, "
+                            f"reasoning_content长度={len(rc_value)}"
                         )
                 else:
                     logger.info(
-                        f"  消息 {idx}: role={role}, has_reasoning={has_rc}, has_tool_calls={has_tc}"
+                        f"  消息 {idx}: role={role}, "
+                        f"has_reasoning={has_rc}, "
+                        f"has_tool_calls={has_tc}"
                     )
 
             request_params = {
                 "model": self.model,
                 "messages": messages,
                 "tools": tools,
-                "tool_choice": "auto"
+                "tool_choice": "auto",
             }
 
             if self.enable_reasoning:
@@ -258,7 +255,7 @@ class DeepSeekService(AIService):
             logger.info(f"  Has reasoning_content: {hasattr(message, 'reasoning_content')}")
 
             reasoning_content = None
-            if hasattr(message, 'reasoning_content') and message.reasoning_content:
+            if hasattr(message, "reasoning_content") and message.reasoning_content:
                 reasoning_content = message.reasoning_content
                 logger.info(f"DeepSeek reasoning: {len(reasoning_content)} chars")
 
@@ -285,15 +282,13 @@ class DeepSeekService(AIService):
         for message in messages:
             if isinstance(message, dict) and "reasoning_content" in message:
                 del message["reasoning_content"]
-            elif hasattr(message, 'reasoning_content'):
+            elif hasattr(message, "reasoning_content"):
                 message.reasoning_content = None
 
         logger.info("Cleared reasoning_content from message history")
 
     async def chat_with_tools_streaming(
-        self,
-        messages: list[dict[str, str]],
-        tools: list[dict[str, Any]]
+        self, messages: list[dict[str, str]], tools: list[dict[str, Any]]
     ) -> AsyncIterator[dict]:
         """流式工具调用对话，支持实时推送 reasoning_content
 
@@ -334,7 +329,7 @@ class DeepSeekService(AIService):
             "messages": messages,
             "tools": tools,
             "tool_choice": "auto",
-            "stream": True  # 启用流式
+            "stream": True,  # 启用流式
         }
 
         if self.enable_reasoning:
@@ -344,6 +339,7 @@ class DeepSeekService(AIService):
 
         accumulated_reasoning = ""
         accumulated_content = ""
+        accumulated_tool_calls = {}  # {index: tool_call_data}
 
         try:
             stream = await self.client.chat.completions.create(**request_params)
@@ -355,12 +351,12 @@ class DeepSeekService(AIService):
                 delta = chunk.choices[0].delta
 
                 # 处理 reasoning_content 增量（思考内容）
-                if hasattr(delta, 'reasoning_content') and delta.reasoning_content:
+                if hasattr(delta, "reasoning_content") and delta.reasoning_content:
                     accumulated_reasoning += delta.reasoning_content
                     yield {
                         "type": "reasoning_delta",
                         "content": delta.reasoning_content,
-                        "reasoning_content": accumulated_reasoning
+                        "reasoning_content": accumulated_reasoning,
                     }
                     logger.debug(f"Reasoning delta: {len(delta.reasoning_content)} chars")
 
@@ -371,55 +367,81 @@ class DeepSeekService(AIService):
                 # 检测工具调用完成（finish_reason 为 tool_calls 或 stop）
                 finish_reason = chunk.choices[0].finish_reason if chunk.choices else None
 
-                # 检测 tool_calls（当检测到 tool_calls 时表示工具调用已确定）
-                if hasattr(delta, 'tool_calls') and delta.tool_calls:
-                    # 注意：流式响应中的 tool_calls 可能是增量构建的
-                    # 我们需要等待 finish_reason 才能确定完整的 tool_calls
-                    pass
+                # 检测 tool_calls（增量累积）
+                if hasattr(delta, "tool_calls") and delta.tool_calls:
+                    for tc in delta.tool_calls:
+                        idx = tc.index
+
+                        # 首次遇到这个 index：创建新记录
+                        if idx not in accumulated_tool_calls:
+                            accumulated_tool_calls[idx] = {
+                                "id": tc.id,
+                                "type": tc.type,
+                                "function": {
+                                    "name": tc.function.name,
+                                    "arguments": tc.function.arguments or "",
+                                },
+                            }
+                            logger.info(
+                                f"=== New tool_call index={idx}, name={tc.function.name} ==="
+                            )
+                        else:
+                            # 增量更新 arguments（拼接字符串）
+                            if tc.function.arguments:
+                                accumulated_tool_calls[idx]["function"]["arguments"] += (
+                                    tc.function.arguments
+                                )
+                                logger.debug(
+                                    f"=== tool_call index={idx}, "
+                                    f"arguments delta: {len(tc.function.arguments)} chars ==="
+                                )
 
                 # 流结束
                 if finish_reason:
                     logger.info(f"=== Stream finished: {finish_reason} ===")
+                    logger.info(
+                        f"=== accumulated_tool_calls count: {len(accumulated_tool_calls)} ==="
+                    )
 
-                    # 获取最终的完整响应（通过最后一个 chunk）
-                    final_message = chunk.choices[0].message if hasattr(chunk.choices[0], 'message') else None
+                    # 优先使用累积的 tool_calls（不依赖 final_message）
+                    tool_calls_history = None
 
-                    if final_message:
-                        # 最终的 reasoning_content
-                        if hasattr(final_message, 'reasoning_content') and final_message.reasoning_content:
-                            accumulated_reasoning = final_message.reasoning_content
-
-                        # 最终的 content
-                        if final_message.content:
-                            accumulated_content = final_message.content
-
-                        # 最终的 tool_calls
-                        tool_calls_history = None
-                        if hasattr(final_message, 'tool_calls') and final_message.tool_calls:
-                            tool_calls_history = _build_tool_calls_history(final_message.tool_calls)
-                            logger.info(f"Final tool_calls: {len(tool_calls_history)} calls")
-
-                            # 有工具调用：返回 tool_calls 事件
-                            yield {
-                                "type": "tool_calls",
-                                "tool_calls": tool_calls_history,
-                                "reasoning_content": accumulated_reasoning
+                    if finish_reason == "tool_calls" and accumulated_tool_calls:
+                        # 从累积的 tool_calls 构建标准格式
+                        tool_calls_history = [
+                            {
+                                "id": tc["id"],
+                                "type": tc["type"],
+                                "function": {
+                                    "name": tc["function"]["name"],
+                                    "arguments": tc["function"]["arguments"],
+                                },
                             }
-                        else:
-                            # 没有工具调用：直接返回 done
-                            yield {
-                                "type": "done",
-                                "content": accumulated_content,
-                                "tool_calls": None,
-                                "reasoning_content": accumulated_reasoning
-                            }
+                            for tc in accumulated_tool_calls.values()
+                        ]
+                        logger.info(
+                            f"=== Accumulated tool_calls: {len(tool_calls_history)} calls ==="
+                        )
+                        for idx, tc in enumerate(tool_calls_history):
+                            args_preview = tc["function"]["arguments"][:50]
+                            logger.info(
+                                f"  Tool {idx}: {tc['function']['name']}({args_preview}...)"
+                            )
+
+                        # 返回 tool_calls 事件
+                        yield {
+                            "type": "tool_calls",
+                            "tool_calls": tool_calls_history,
+                            "reasoning_content": accumulated_reasoning,
+                        }
                     else:
-                        # 无法获取最终消息，使用累积的数据
+                        # 没有工具调用
+                        logger.info(f"=== No tool_calls (finish_reason={finish_reason}) ===")
                         yield {
                             "type": "done",
                             "content": accumulated_content,
                             "tool_calls": None,
-                            "reasoning_content": accumulated_reasoning
+                            "reasoning_content": accumulated_reasoning,
                         }
 
                     break
@@ -437,5 +459,5 @@ class DeepSeekService(AIService):
                 "type": "done",
                 "content": content,
                 "tool_calls": tool_calls,
-                "reasoning_content": reasoning
+                "reasoning_content": reasoning or "",
             }

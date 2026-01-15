@@ -15,20 +15,15 @@ from app.database import init_db
 settings = get_settings()
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(levelname)s: %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 # Set specific loggers to INFO level
-logging.getLogger('app').setLevel(logging.INFO)
-logging.getLogger('app.api').setLevel(logging.INFO)
-logging.getLogger('app.services').setLevel(logging.INFO)
+logging.getLogger("app").setLevel(logging.INFO)
+logging.getLogger("app.api").setLevel(logging.INFO)
+logging.getLogger("app.services").setLevel(logging.INFO)
 
 # Create FastAPI app
 app = FastAPI(
-    title="AI Agent Sandbox",
-    description="An AI-powered web development sandbox",
-    version="1.0.0"
+    title="AI Agent Sandbox", description="An AI-powered web development sandbox", version="1.0.0"
 )
 
 # Configure CORS

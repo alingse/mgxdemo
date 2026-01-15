@@ -1681,6 +1681,11 @@ body {
     border: none;
 }
 
+/* 确保消息气泡内容可以完整显示 */
+.message-assistant .message-bubble {
+    display: block;
+}
+
 /* ========================================
    MESSAGE EXECUTION STEPS
    ======================================== */
@@ -1693,8 +1698,6 @@ body {
     border-radius: var(--radius-md);
     padding: 10px;
     font-size: 13px;
-    max-height: 400px;
-    overflow-y: auto;
 }
 
 /* 正在生成的消息样式 */
@@ -2197,5 +2200,83 @@ details[open] summary {
         transform: translateX(0);
         opacity: 1;
     }
+}
+
+/* ========================================
+   TODOS PANEL STYLES
+   ======================================== */
+
+/* Todos Panel - fixed above input form */
+.todos-panel {
+    padding: 10px 15px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    max-height: 150px;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.todos-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.todos-title {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.todos-count {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    background: var(--input-bg);
+    padding: 2px 6px;
+    border-radius: 10px;
+}
+
+.todos-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.todo-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    transition: background-color 0.15s ease;
+}
+
+.todo-pending {
+    opacity: 0.6;
+}
+
+.todo-in_progress {
+    background: #f0f9ff;
+    color: #0369a1;
+}
+
+.todo-completed {
+    opacity: 0.5;
+    text-decoration: line-through;
+}
+
+.todo-icon {
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+.todo-text {
+    flex: 1;
+    word-break: break-word;
+    line-height: 1.4;
 }
 }

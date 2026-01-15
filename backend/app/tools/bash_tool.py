@@ -11,8 +11,18 @@ class BashTool(AgentTool):
 
     # 允许的命令白名单
     ALLOWED_COMMANDS = {
-        "ls", "cat", "head", "tail", "grep", "find",
-        "mkdir", "rm", "mv", "cp", "pwd", "echo"
+        "ls",
+        "cat",
+        "head",
+        "tail",
+        "grep",
+        "find",
+        "mkdir",
+        "rm",
+        "mv",
+        "cp",
+        "pwd",
+        "echo",
     }
 
     def __init__(self, session_path: Path, timeout: int = 30):
@@ -38,10 +48,10 @@ class BashTool(AgentTool):
             "properties": {
                 "command": {
                     "type": "string",
-                    "description": "要执行的bash命令，例如：ls -la, cat index.html"
+                    "description": "要执行的bash命令，例如：ls -la, cat index.html",
                 }
             },
-            "required": ["command"]
+            "required": ["command"],
         }
 
     async def execute(self, command: str) -> str:
@@ -55,7 +65,7 @@ class BashTool(AgentTool):
             # 检查命令是否在白名单中
             base_command = parts[0]
             if base_command not in self.ALLOWED_COMMANDS:
-                allowed = ', '.join(self.ALLOWED_COMMANDS)
+                allowed = ", ".join(self.ALLOWED_COMMANDS)
                 return f"错误：不允许执行命令 '{base_command}'。仅支持：{allowed}"
 
             # 确保沙箱目录存在
@@ -66,21 +76,18 @@ class BashTool(AgentTool):
                 *parts,
                 cwd=str(self.session_path),
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
 
             try:
-                stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=self.timeout
-                )
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout)
             except TimeoutError:
                 process.kill()
                 return f"错误：命令执行超时（>{self.timeout}秒）"
 
             # 返回结果
-            output = stdout.decode('utf-8', errors='ignore')
-            error = stderr.decode('utf-8', errors='ignore')
+            output = stdout.decode("utf-8", errors="ignore")
+            error = stderr.decode("utf-8", errors="ignore")
 
             if process.returncode != 0:
                 return f"命令执行失败（退出码: {process.returncode}）\n{error}"

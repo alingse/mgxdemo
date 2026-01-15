@@ -6,6 +6,7 @@ from app.database import Base
 
 class Todo(Base):
     """任务分解和跟踪模型（已废弃，使用 TodoSnapshot）"""
+
     __tablename__ = "todos"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -18,6 +19,7 @@ class Todo(Base):
 
 class TodoSnapshot(Base):
     """TODO 快照模型 - 每个 session 只保留最新状态"""
+
     __tablename__ = "todo_snapshots"
 
     id = Column(Integer, primary_key=True, index=True)
