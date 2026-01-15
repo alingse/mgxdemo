@@ -48,13 +48,13 @@ class SandboxService:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Sandbox</title>
+    <title>AI 沙箱</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="app">
-        <h1>Hello, World!</h1>
-        <p>This is your sandbox. Ask AI to create something amazing!</p>
+        <h1>欢迎来到 AI 沙箱</h1>
+        <p>告诉 AI 你想做什么，它会帮你在这里创建网页、游戏或任何有趣的东西。</p>
     </div>
     <script src="script.js"></script>
 </body>

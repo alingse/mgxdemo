@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     tool_execution_timeout: int = 30  # seconds
     max_tool_calls_per_message: int = 10
 
+    # Message Truncation Configuration
+    max_user_input_length: int = 1000  # 用户输入最大字符数
+    max_history_messages: int = 20  # 保留的历史消息数量
+    enable_message_truncation: bool = True  # 是否启用消息截取
+    truncation_warning_message: str = "...(消息已截取)"  # 截取提示文本
+
     class Config:
         env_file = ".env"
         case_sensitive = False

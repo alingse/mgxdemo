@@ -428,9 +428,10 @@ class DeepSeekService(AIService):
                                 f"  Tool {idx}: {tc['function']['name']}({args_preview}...)"
                             )
 
-                        # 返回 tool_calls 事件
+                        # 返回 tool_calls 事件（同时也包含 accumulated_content）
                         yield {
                             "type": "tool_calls",
+                            "content": accumulated_content,  # 添加 content 字段
                             "tool_calls": tool_calls_history,
                             "reasoning_content": accumulated_reasoning,
                         }

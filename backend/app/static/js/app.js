@@ -63,12 +63,39 @@ const utils = {
         return `会话 ${timestamp}`;
     },
 
+    /**
+     * 解析后端返回的日期字符串。
+     * 后端返回的是 UTC 时间但没有时区后缀（如 "2025-01-15T07:01:00"），
+     * JavaScript 会将其当作本地时间。需要手动解析为 UTC 时间。
+     */
+    _parseUTCDate(dateInput) {
+        // 如果传入的是 Date 对象，直接返回
+        if (dateInput instanceof Date) {
+            return dateInput;
+        }
+        // 转换为字符串处理
+        const dateStr = String(dateInput);
+        const date = new Date(dateStr);
+        // 如果字符串不包含时区信息（Z 或 ±HH:MM），说明是 UTC 时间
+        if (!dateStr.includes('Z') && !dateStr.includes('+') && !dateStr.includes('T')) {
+            return date; // 简单格式，直接返回
+        }
+        // 检查 ISO 格式是否有时区后缀
+        const hasTimezone = /[+-]\d{2}:\d{2}$|Z$/.test(dateStr);
+        if (!hasTimezone && dateStr.includes('T')) {
+            // 没有时区后缀的 ISO 格式，当作 UTC 处理
+            // 重新解析，添加 Z 后缀
+            return new Date(dateStr + 'Z');
+        }
+        return date;
+    },
+
     formatDate(dateStr, locale = 'zh-CN') {
-        return new Date(dateStr).toLocaleString(locale);
+        return this._parseUTCDate(dateStr).toLocaleString(locale);
     },
 
     formatTime(dateStr) {
-        return new Date(dateStr).toLocaleTimeString('zh-CN');
+        return this._parseUTCDate(dateStr).toLocaleTimeString('zh-CN');
     }
 };
 
@@ -353,7 +380,13 @@ const ui = {
 
     refreshPreview() {
         if (currentSession) {
-            elements.previewFrame.src = api.getPreviewUrl(currentSession.id);
+            // 添加时间戳参数强制刷新，避免浏览器缓存
+            const timestamp = Date.now();
+            const previewUrl = api.getPreviewUrl(currentSession.id);
+            // 使用 URL 对象正确处理查询参数
+            const url = new URL(previewUrl, window.location.origin);
+            url.searchParams.set('_t', timestamp);
+            elements.previewFrame.src = url.toString();
         }
     },
 
@@ -678,6 +711,9 @@ async function sendMessage(e) {
     `;
     elements.messagesContainer.appendChild(userDiv);
 
+    // 滚动到底部显示用户消息
+    elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
+
     // 2. 创建AI消息容器
     const aiDiv = document.createElement('div');
     aiDiv.className = 'message message-assistant streaming';
@@ -690,6 +726,9 @@ async function sendMessage(e) {
         </div>
     `;
     elements.messagesContainer.appendChild(aiDiv);
+
+    // 滚动到底部显示 AI 消息容器
+    elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
 
     const streamContentDiv = aiDiv.querySelector('.stream-content');
     const stepsContainer = aiDiv.querySelector('.message-execution-steps');
@@ -744,10 +783,12 @@ async function sendMessage(e) {
                                     const existingDiv = stepMap.get(key);
                                     _updateStepStatus(existingDiv, step);
                                     if (step.reasoning_content) {
-                                        _updateReasoningContent(existingDiv, step.reasoning_content);
+                                        _updateReasoningContent(existingDiv, step.reasoning_content, step);
                                     }
                                 }
                             });
+                            // 滚动主消息容器到底部，确保最新消息可见
+                            elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
                         });
                 }
             },
@@ -755,6 +796,13 @@ async function sendMessage(e) {
             // onEvent: 处理推送事件
             onEvent: ({ event, data }) => {
                 console.log('[SSE] Event:', event, data);
+
+                // 处理 todos 更新事件
+                if (event === 'todos_update' && data.todos) {
+                    console.log('[SSE] Updating todos:', data);
+                    ui.renderTodos(data);
+                    return;
+                }
 
                 if (data.type === 'step') {
                     const step = data.data;
@@ -788,7 +836,8 @@ async function sendMessage(e) {
                         stepDiv = _createExecutionStepElement(step);
                         stepsContainer.appendChild(stepDiv);
                         stepMap.set(key, stepDiv);
-                        stepsContainer.scrollTop = stepsContainer.scrollHeight;
+                        // 滚动主消息容器到底部，确保最新消息可见
+                        elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
                     } else {
                         // 已存在，更新状态（图标、标题等）
                         _updateStepStatus(stepDiv, step);
@@ -797,8 +846,9 @@ async function sendMessage(e) {
                     // 处理 reasoning_content 更新（thinking_delta 或普通 step 事件）
                     if (step.reasoning_content) {
                         console.log('[SSE] Updating reasoning content:', key, 'length:', step.reasoning_content.length);
-                        _updateReasoningContent(stepDiv, step.reasoning_content);
-                        stepsContainer.scrollTop = stepsContainer.scrollHeight;
+                        _updateReasoningContent(stepDiv, step.reasoning_content, step);
+                        // 滚动主消息容器到底部，确保最新消息可见
+                        elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
                     }
                 }
             },
@@ -850,6 +900,9 @@ async function sendMessage(e) {
 
                 // 移除 streaming 状态
                 aiDiv.classList.remove('streaming');
+
+                // 滚动到底部显示完整消息
+                elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
 
                 await ui.loadTodos();
                 ui.refreshPreview();
@@ -1121,6 +1174,88 @@ function _updateStepStatus(stepDiv, step) {
     if (titleEl) {
         titleEl.textContent = _getStepDisplayName(step);
     }
+
+    // 更新或添加工具参数
+    if (step.tool_arguments) {
+        let argsDetails = stepDiv.querySelector('details[data-type="tool-arguments"]');
+        if (!argsDetails) {
+            const stepHeader = stepDiv.querySelector('.step-header');
+            argsDetails = document.createElement('details');
+            argsDetails.className = 'step-details';
+            argsDetails.setAttribute('data-type', 'tool-arguments');
+            argsDetails.open = true;
+
+            const summary = document.createElement('summary');
+            summary.textContent = '🔧 工具参数';
+            argsDetails.appendChild(summary);
+
+            const pre = document.createElement('pre');
+            argsDetails.appendChild(pre);
+
+            if (stepHeader) {
+                stepHeader.after(argsDetails);
+            } else {
+                stepDiv.appendChild(argsDetails);
+            }
+        }
+        const pre = argsDetails.querySelector('pre');
+        if (pre) {
+            const args = typeof step.tool_arguments === 'string'
+                ? JSON.parse(step.tool_arguments)
+                : step.tool_arguments;
+            pre.textContent = JSON.stringify(args, null, 2);
+        }
+    }
+
+    // 更新或添加工具结果
+    if (step.tool_result) {
+        let resultDetails = stepDiv.querySelector('details[data-type="tool-result"]');
+        if (!resultDetails) {
+            const stepHeader = stepDiv.querySelector('.step-header');
+            resultDetails = document.createElement('details');
+            resultDetails.className = 'step-details';
+            resultDetails.setAttribute('data-type', 'tool-result');
+            resultDetails.open = true;
+
+            const summary = document.createElement('summary');
+            summary.textContent = '✓ 执行结果';
+            resultDetails.appendChild(summary);
+
+            const pre = document.createElement('pre');
+            resultDetails.appendChild(pre);
+
+            if (stepHeader) {
+                stepHeader.after(resultDetails);
+            } else {
+                stepDiv.appendChild(resultDetails);
+            }
+        }
+        const pre = resultDetails.querySelector('pre');
+        if (pre) {
+            pre.textContent = step.tool_result.substring(0, 500) +
+                (step.tool_result.length > 500 ? '...' : '');
+        }
+    }
+
+    // 更新或添加工具错误
+    if (step.tool_error) {
+        let errorEl = stepDiv.querySelector('.step-error');
+        if (!errorEl) {
+            errorEl = document.createElement('div');
+            errorEl.className = 'step-error';
+            const stepHeader = stepDiv.querySelector('.step-header');
+            if (stepHeader) {
+                stepHeader.after(errorEl);
+            } else {
+                stepDiv.appendChild(errorEl);
+            }
+        }
+        errorEl.textContent = '';
+        const strong = document.createElement('strong');
+        strong.textContent = '❌ 错误:';
+        errorEl.appendChild(strong);
+        errorEl.appendChild(document.createTextNode(' ' + step.tool_error));
+    }
 }
 
 /**
@@ -1137,10 +1272,18 @@ function _getTodoIcon(status) {
 
 /**
  * 更新思考内容（增量更新）
+ * 只为纯思考步骤更新，工具调用步骤不更新思考内容
  * @param {HTMLElement} stepDiv - 步骤元素
  * @param {string} reasoningContent - 思考内容
+ * @param {Object} step - 步骤数据
  */
-function _updateReasoningContent(stepDiv, reasoningContent) {
+function _updateReasoningContent(stepDiv, reasoningContent, step) {
+    // 如果是工具调用步骤，不更新思考内容
+    // 工具调用步骤的思考内容应该在创建时放在 details 中，而不是更新时追加
+    if (step && (step.tool_name || step.tool_arguments || step.tool_result || step.tool_error)) {
+        return;
+    }
+
     // 查找或创建思考内容容器
     let preEl = stepDiv.querySelector('.step-thinking-content pre');
 

@@ -121,8 +121,25 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+/**
+ * 解析后端返回的日期字符串。
+ * 后端返回的是 UTC 时间但没有时区后缀（如 "2025-01-15T07:01:00"），
+ * JavaScript 会将其当作本地时间。需要手动解析为 UTC 时间。
+ */
+function parseUTCDate(dateStr) {
+    const date = new Date(dateStr);
+    // 检查 ISO 格式是否有时区后缀
+    const hasTimezone = /[+-]\d{2}:\d{2}$|Z$/.test(dateStr);
+    if (!hasTimezone && dateStr.includes('T')) {
+        // 没有时区后缀的 ISO 格式，当作 UTC 处理
+        // 重新解析，添加 Z 后缀
+        return new Date(dateStr + 'Z');
+    }
+    return date;
+}
+
 function formatTime(dateString) {
-    const date = new Date(dateString);
+    const date = parseUTCDate(dateString);
     const now = new Date();
     const diffMs = now - date;
     const diffMins = Math.floor(diffMs / 60000);

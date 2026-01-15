@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.core.deps import get_current_user, get_current_user_optional
 from app.database import get_db
 from app.models.agent_execution import AgentExecutionStep, ExecutionStatus
@@ -25,7 +26,100 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sessions/{session_id}/messages", tags=["messages"])
 
 # 常量
-_MAX_AGENT_ITERATIONS = 100
+_MAX_AGENT_ITERATIONS = 500
+
+
+def _truncate_user_input(
+    content: str,
+    max_length: int,
+    warning_message: str = "..."
+) -> str:
+    """截取用户输入内容，超过长度时添加提示。
+
+    Args:
+        content: 用户输入内容
+        max_length: 最大长度
+        warning_message: 截取提示文本
+
+    Returns:
+        截取后的内容（如果超过长度）
+    """
+    if len(content) <= max_length:
+        return content
+
+    truncated = content[:max_length]
+    if warning_message:
+        truncated += warning_message
+
+    return truncated
+
+
+def _apply_truncation_strategy(
+    messages: list[dict],  # 按时间顺序的所有消息
+    max_history: int = 20
+) -> list[dict]:
+    """应用历史消息截取策略。
+
+    Strategy（保持时间顺序）:
+    - 保留用户第一条消息（重要初始上下文）
+    - 保留所有 system 消息（文件操作通知等）
+    - 保留最新 N 条 assistant 消息
+    - 保留与被保留的 assistant 关联的 tool 消息
+
+    Returns:
+        截取后的消息列表（按时间顺序）
+
+    Example:
+        Input:  [system, user1, assist1, tool1, system, user2, assist2, tool2, ...]
+        Output: [system, user1, system, assist2, tool2, ...]
+                 ↑      ↑             ↑        ↑
+            system  第一条      system    最新N条
+            消息    用户消息              assistant+tool
+    """
+    # 1. 找出最新 N 条 assistant 消息
+    assistant_messages = [m for m in messages if m["role"] == "assistant"]
+    recent_assistants = assistant_messages[-max_history:] if assistant_messages else []
+
+    # 收集这些 assistant 的 tool_call_id
+    tool_call_ids = set()
+    for msg in recent_assistants:
+        if "tool_calls" in msg:
+            for tc in msg["tool_calls"]:
+                tool_call_ids.add(tc.get("id"))
+
+    # 2. 遍历所有消息（保持时间顺序），决定是否保留
+    result_messages = []
+    first_user_kept = False
+
+    for msg in messages:
+        role = msg["role"]
+
+        # system 消息：保留（包括文件操作通知等）
+        if role == "system":
+            result_messages.append(msg)
+
+        # 第一条用户消息：保留
+        elif role == "user" and not first_user_kept:
+            result_messages.append(msg)
+            first_user_kept = True
+
+        # 其他用户消息：跳过（截取中间的用户消息）
+        elif role == "user":
+            continue
+
+        # assistant 消息：只在最近的 N 条中保留
+        elif role == "assistant":
+            # 使用 id 或对象引用来判断
+            if msg in recent_assistants:
+                result_messages.append(msg)
+
+        # tool 消息：只在关联的 assistant 被保留时保留
+        elif role == "tool":
+            if msg.get("tool_call_id") in tool_call_ids:
+                result_messages.append(msg)
+
+    return result_messages
+
 
 # 全局事件队列（生产环境应使用Redis）
 # 结构: {session_id: asyncio.Queue}
@@ -318,8 +412,15 @@ async def _build_contextual_user_prompt(
     return "\n".join(context_parts)
 
 
-async def _prepare_ai_messages(session_id: str, user_id: int, db: Session) -> list[dict]:
-    """准备发送给 AI 的消息列表。"""
+async def _prepare_ai_messages(
+    session_id: str,
+    user_id: int,
+    db: Session,
+    enable_truncation: bool = True
+) -> list[dict]:
+    """准备发送给 AI 的消息列表（支持截取）。"""
+    settings = get_settings()
+
     messages = (
         db.query(Message)
         .filter(Message.session_id == session_id)
@@ -327,7 +428,11 @@ async def _prepare_ai_messages(session_id: str, user_id: int, db: Session) -> li
         .all()
     )
 
+    # 构建 system prompt（始终在首位）
     ai_messages = [{"role": "system", "content": _SYSTEM_PROMPT}]
+
+    # 构建所有消息列表（保持时间顺序）
+    all_messages = []
 
     for msg in messages:
         msg_dict = {"role": msg.role.value, "content": msg.content}
@@ -335,20 +440,33 @@ async def _prepare_ai_messages(session_id: str, user_id: int, db: Session) -> li
         if msg.role == MessageRole.USER:
             # 用户消息：添加上下文信息
             msg_dict["content"] = await _build_contextual_user_prompt(
-                session_id=session_id, user_id=user_id, user_message=msg.content, db=db
+                session_id=session_id,
+                user_id=user_id,
+                user_message=msg.content,
+                db=db
             )
+            all_messages.append(msg_dict)
         elif msg.role == MessageRole.ASSISTANT and msg.tool_calls:
             # Assistant 消息有 tool_calls 时，必须添加 reasoning_content
             msg_dict["tool_calls"] = _convert_tool_calls_to_api_format(msg.tool_calls)
-            # DeepSeek API 要求：包含 tool_calls 的消息必须同时包含 reasoning_content
             msg_dict["reasoning_content"] = msg.reasoning_content or ""
+            all_messages.append(msg_dict)
         elif msg.role == MessageRole.TOOL:
             # TOOL 消息：需要添加 tool_call_id
             msg_dict["tool_call_id"] = msg.tool_call_id or ""
-            # TOOL 消息不需要 content 字段（但 API 仍然接受）
-        # SYSTEM 消息不需要特殊处理
+            all_messages.append(msg_dict)
+        elif msg.role == MessageRole.SYSTEM:
+            all_messages.append(msg_dict)
 
-        ai_messages.append(msg_dict)
+    # 应用截取策略（或不截取）
+    if enable_truncation and settings.enable_message_truncation:
+        truncated = _apply_truncation_strategy(
+            messages=all_messages,
+            max_history=settings.max_history_messages
+        )
+        ai_messages.extend(truncated)
+    else:
+        ai_messages.extend(all_messages)
 
     return ai_messages
 
@@ -410,8 +528,9 @@ async def _run_agent_loop(
         logger.info(f"  Messages count: {len(ai_messages)}")
         logger.info(f"  Tools count: {len(tools_schema)}")
 
-        # 累积的思考内容
+        # 累积的思考内容和回复内容
         accumulated_reasoning = ""
+        accumulated_response = ""  # 累积的 AI 回复内容
         tool_calls = None
 
         try:
@@ -448,8 +567,12 @@ async def _run_agent_loop(
                     # 工具调用确定
                     tool_calls = event.get("tool_calls")
                     accumulated_reasoning = event.get("reasoning_content", accumulated_reasoning)
+                    # 累积回复内容
+                    if event.get("content"):
+                        accumulated_response += event.get("content")
 
                     logger.info(f"=== Tool calls determined: {len(tool_calls)} calls ===")
+                    logger.info(f"  Accumulated response length: {len(accumulated_response)}")
 
                     # 保存 TOOL_CALLING 状态
                     _save_execution_step(
@@ -465,12 +588,12 @@ async def _run_agent_loop(
 
                 elif event_type == "done":
                     # 完成
-                    assistant_response = event.get("content", "")
+                    accumulated_response += event.get("content", "")  # 累积回复内容
                     tool_calls = event.get("tool_calls")
                     accumulated_reasoning = event.get("reasoning_content", accumulated_reasoning)
 
                     logger.info(f"=== Iteration {iteration}: streaming completed ===")
-                    logger.info(f"  Response length: {len(assistant_response)}")
+                    logger.info(f"  Accumulated response length: {len(accumulated_response)}")
                     logger.info(f"  Tool calls count: {len(tool_calls) if tool_calls else 0}")
                     reasoning_len = len(accumulated_reasoning) if accumulated_reasoning else 0
                     logger.info(f"  Reasoning length: {reasoning_len}")
@@ -485,6 +608,10 @@ async def _run_agent_loop(
         if accumulated_reasoning:
             final_reasoning = accumulated_reasoning
             logger.info(f"Final reasoning (iter {iteration}): {accumulated_reasoning[:500]}...")
+
+        # 将本次迭代的回复内容累积到总回复中
+        assistant_response += accumulated_response
+        logger.info(f"Accumulated assistant_response (iter {iteration}): {len(assistant_response)} chars")
 
         _save_execution_step(
             db=db,
@@ -604,6 +731,22 @@ async def _run_agent_loop(
                 )
                 logger.info(f"Tool {tool_name} executed")
 
+                # 如果是 todo_write 工具，推送 todos 更新事件
+                if tool_name == "todo_write":
+                    try:
+                        # 从结果中解析 todos 数据
+                        result_data = json.loads(result) if isinstance(result, str) else result
+                        if "todos" in result_data:
+                            queue = get_event_queue(session_id)
+                            _emit_event_nonblocking(
+                                queue,
+                                {"event": "todos_update", "data": result_data, "id": f"todos_{session_id}"},
+                                "todos_update",
+                            )
+                            logger.info(f"[SSE] Emitted todos_update for session {session_id}")
+                    except Exception as e:
+                        logger.warning(f"[SSE] Failed to emit todos_update: {e}")
+
             except Exception as e:
                 error_msg = f"工具 {tool_name} 执行失败: {str(e)}"
                 logger.error(error_msg)
@@ -686,6 +829,23 @@ async def create_message(
     4. 立即返回 AI 消息（前端开始监听 SSE）
     """
     _verify_session_access(session_id, current_user.id, db)
+
+    # 获取配置
+    settings = get_settings()
+
+    # 截取用户输入（如果启用）
+    if settings.enable_message_truncation:
+        original_length = len(message_create.content)
+        message_create.content = _truncate_user_input(
+            message_create.content,
+            settings.max_user_input_length,
+            settings.truncation_warning_message
+        )
+        if original_length > len(message_create.content):
+            logger.info(
+                f"User input truncated from {original_length} to "
+                f"{len(message_create.content)} chars"
+            )
 
     # 1. 保存用户消息
     user_message = Message(

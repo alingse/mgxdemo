@@ -40,8 +40,8 @@ class ApiClient {
         if (response.status === 401) {
             // Unauthorized - clear token and redirect to login
             this.setToken(null);
-            if (window.location.pathname !== '/static/login.html') {
-                window.location.href = '/static/login.html';
+            if (window.location.pathname !== '/sign-in') {
+                window.location.href = '/sign-in';
             }
             throw new Error('Unauthorized');
         }
