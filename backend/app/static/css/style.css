@@ -1420,8 +1420,8 @@ body {
         background: var(--surface);
         border-top: 1px solid var(--border);
         z-index: 50;
-        padding: 8px 0;
-        padding-bottom: calc(8px + env(safe-area-inset-bottom));
+        padding: 6px 0;
+        padding-bottom: calc(6px + env(safe-area-inset-bottom));
     }
 
     .mobile-tab {
@@ -1429,29 +1429,29 @@ body {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 4px;
-        padding: 8px;
+        gap: 3px;
+        padding: 6px;
         border: none;
         background: transparent;
         color: var(--text-tertiary);
-        font-size: 12px;
+        font-size: 11px;
         cursor: pointer;
         transition: all var(--duration-fast);
+    }
+
+    .mobile-tab svg {
+        width: 20px;
+        height: 20px;
     }
 
     .mobile-tab.active {
         color: var(--primary-color);
     }
 
-    .mobile-tab svg {
-        width: 24px;
-        height: 24px;
-    }
-
     /* 主容器改为上下布局 */
     .main-container {
         flex-direction: column;
-        padding-bottom: 60px; /* 为 Tab 留空间 */
+        padding-bottom: 50px; /* 为 Tab 留空间 */
     }
 
     /* 侧边栏全屏抽屉 */
@@ -1484,7 +1484,7 @@ body {
         top: 56px; /* header 高度 */
         left: 0;
         right: 0;
-        bottom: 60px; /* Tab 高度 */
+        bottom: 50px; /* Tab 高度 */
         width: 100%;
         height: auto;
         z-index: 5;
@@ -1503,6 +1503,42 @@ body {
         display: none;
     }
 
+    /* 移动端会话列表字体调整 */
+    .session-item-title {
+        font-size: 13px;
+    }
+
+    .session-item-time {
+        font-size: 11px;
+    }
+
+    .session-title {
+        font-size: 13px;
+    }
+
+    .session-time {
+        font-size: 11px;
+    }
+
+    /* 移动端预览区域字体调整 */
+    .preview-header {
+        padding: 10px 16px;
+    }
+
+    .preview-header h2 {
+        font-size: 12px;
+    }
+
+    .preview-actions .btn-small {
+        font-size: 11px;
+        padding: 5px 10px;
+    }
+
+    .preview-actions .btn-icon-text svg {
+        width: 14px;
+        height: 14px;
+    }
+
     /* Header 压缩 */
     .header {
         padding: 12px 16px;
@@ -1516,8 +1552,19 @@ body {
         display: none; /* 手机上隐藏用户名 */
     }
 
-    /* 消息气泡调整 */
+    /* 聊天区域标题 */
+    .current-session-title {
+        font-size: 14px;
+    }
+
+    .chat-header {
+        padding: 12px 16px;
+    }
+
+    /* 消息气泡字体调整 */
     .message-bubble {
+        font-size: 14px;
+        padding: 10px 14px;
         max-width: 90%;
     }
 
@@ -1579,18 +1626,22 @@ body {
 
     /* Homepage */
     .hero-container h1 {
-        font-size: 42px;
+        font-size: 36px;
     }
     .subtitle {
-        font-size: 18px;
+        font-size: 16px;
     }
     .main-input {
-        font-size: 16px;
-        padding: 20px 24px;
+        font-size: 15px;
+        padding: 16px 56px 16px 20px;
     }
     .placeholder-text {
-        font-size: 16px;
-        left: 24px;
+        font-size: 15px;
+        left: 20px;
+    }
+    .example-tag {
+        font-size: 13px;
+        padding: 10px 18px;
     }
 
     /* Auth Pages */
@@ -1610,19 +1661,59 @@ body {
     }
 
     .chat-header {
-        padding: 12px 16px;
+        padding: 10px 12px;
+    }
+
+    .current-session-title {
+        font-size: 13px;
     }
 
     .messages-container {
-        padding: 12px;
+        padding: 10px;
     }
 
     .message-form {
-        padding: 12px;
+        padding: 10px;
+    }
+
+    .message-bubble {
+        font-size: 13px;
+        padding: 8px 12px;
+    }
+
+    /* 会话列表进一步减小 */
+    .session-item-title {
+        font-size: 12px;
+    }
+
+    .session-item-time {
+        font-size: 10px;
+    }
+
+    .preview-header h2 {
+        font-size: 11px;
+    }
+
+    .preview-header {
+        padding: 8px 12px;
     }
 
     .auth-card {
         padding: 28px 20px;
+    }
+
+    /* Homepage */
+    .hero-container h1 {
+        font-size: 32px;
+    }
+
+    .subtitle {
+        font-size: 15px;
+    }
+
+    .example-tag {
+        font-size: 12px;
+        padding: 8px 16px;
     }
 }
 
