@@ -110,6 +110,13 @@ class ApiClient {
         });
     }
 
+    async updateSession(sessionId, updates) {
+        return this.request(`/api/sessions/${sessionId}`, {
+            method: 'PUT',
+            body: JSON.stringify(updates)
+        });
+    }
+
     // Message APIs
     async listMessages(sessionId) {
         return this.request(`/api/sessions/${sessionId}/messages`);

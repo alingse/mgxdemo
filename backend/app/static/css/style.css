@@ -2117,3 +2117,85 @@ details[open] summary::before {
 details[open] summary {
     margin-bottom: 6px;
 }
+
+/* ========================================
+   PUBLIC SHARING STYLES
+   ======================================== */
+
+/* Preview actions container */
+.preview-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Button with icon and text */
+.btn-icon-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-icon-text svg {
+    flex-shrink: 0;
+}
+
+/* Read-only banner */
+.read-only-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-size: 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.read-only-banner svg {
+    flex-shrink: 0;
+}
+
+/* Read-only mode: disable message form */
+.read-only-mode .message-form {
+    display: none;
+}
+
+.read-only-mode .messages-container {
+    padding-bottom: 20px;
+}
+
+/* Toast notifications */
+.toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 9999;
+    animation: slideIn 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.toast-success {
+    background: #10b981;
+}
+
+.toast-error {
+    background: #ef4444;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+}

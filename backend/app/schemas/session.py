@@ -65,8 +65,9 @@ class MessageResponse(MessageBase):
 
 
 class SessionDetail(SessionResponse):
-    """Session detail with messages."""
+    """Session detail with messages and ownership info."""
     messages: list[MessageResponse] = []
+    is_owner: bool = True  # 默认 True 保持向后兼容
 
 
 class SessionUpdate(BaseModel):

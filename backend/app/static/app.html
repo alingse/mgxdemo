@@ -58,6 +58,13 @@
                         </svg>
                     </button>
                 </div>
+                <div id="readOnlyBanner" class="read-only-banner" style="display: none;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span>这是公开分享的会话，您只能查看不能修改</span>
+                </div>
 
                 <div class="messages-section">
                     <div id="messagesContainer" class="messages-container">
@@ -87,7 +94,41 @@
             <section class="preview-area">
                 <div class="preview-header">
                     <h2>预览</h2>
-                    <button id="refreshPreviewBtn" class="btn btn-secondary btn-small">刷新</button>
+                    <div class="preview-actions">
+                        <button id="experienceBtn" class="btn btn-secondary btn-small btn-icon-text" style="display: none;" title="在新窗口打开">
+                            <span>体验</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                        </button>
+                        <button id="shareBtn" class="btn btn-secondary btn-small btn-icon-text" style="display: none;" title="复制链接">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="18" cy="5" r="3"></circle>
+                                <circle cx="6" cy="12" r="3"></circle>
+                                <circle cx="18" cy="19" r="3"></circle>
+                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                            </svg>
+                            <span>分享</span>
+                        </button>
+                        <button id="setPublicBtn" class="btn btn-primary btn-small btn-icon-text" style="display: none;" title="设置为公开分享">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <span>设置公开</span>
+                        </button>
+                        <button id="refreshPreviewBtn" class="btn btn-secondary btn-small btn-icon-text" title="刷新预览">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="23 4 23 10 17 10"></polyline>
+                                <polyline points="1 20 1 14 7 14"></polyline>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
+                            <span>刷新</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="preview-container">
                     <iframe id="previewFrame" class="preview-frame"></iframe>

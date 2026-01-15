@@ -9,7 +9,7 @@ from typing import Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_current_user_optional
 from app.database import get_db
 from app.models.agent_execution import AgentExecutionStep, ExecutionStatus
 from app.models.message import Message, MessageRole
@@ -36,7 +36,7 @@ _event_queues: Dict[str, asyncio.Queue] = {}
 def get_event_queue(session_id: str) -> asyncio.Queue:
     """获取或创建会话的事件队列"""
     if session_id not in _event_queues:
-        _event_queues[session_id] = asyncio.Queue(maxsize=100)
+        _event_queues[session_id] = asyncio.Queue(maxsize=1000)
     return _event_queues[session_id]
 
 
@@ -45,6 +45,33 @@ def cleanup_event_queue(session_id: str):
     if session_id in _event_queues:
         del _event_queues[session_id]
         logger.info(f"[SSE] Cleaned up event queue for session {session_id}")
+
+
+def _emit_event_nonblocking(queue: asyncio.Queue, event: dict, event_name: str = "event") -> bool:
+    """非阻塞向队列发送事件，队列满时丢弃最旧的事件
+
+    Args:
+        queue: SSE 事件队列
+        event: 要发送的事件字典
+        event_name: 事件名称（用于日志）
+
+    Returns:
+        bool: 是否成功发送
+    """
+    try:
+        queue.put_nowait(event)
+        return True
+    except asyncio.QueueFull:
+        # 丢弃最旧的事件，为最新事件腾出空间
+        try:
+            queue.get_nowait()
+            queue.put_nowait(event)
+            logger.debug(f"[SSE] Dropped oldest event for {event_name}")
+            return True
+        except asyncio.QueueEmpty:
+            # 理论上不会发生，因为刚捕获了 QueueFull
+            logger.warning(f"[SSE] Queue was full but now empty for {event_name}")
+            return False
 
 
 _SYSTEM_PROMPT = """你是一个网页开发助手。你帮助用户创建和修改网页应用。
@@ -129,6 +156,40 @@ def _verify_session_access(session_id: str, user_id: int, db: Session) -> Sessio
     return session
 
 
+def _verify_session_access_with_read_only(
+    session_id: str,
+    user: User | None,
+    db: Session
+) -> tuple[SessionModel, bool]:
+    """验证会话访问权限，返回 (session, is_read_only)
+
+    支持公开会话的只读访问。
+    """
+    session = db.query(SessionModel).filter(
+        SessionModel.id == session_id
+    ).first()
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found"
+        )
+
+    # 所有者访问：完整权限
+    if user and user.id == session.user_id:
+        return session, False
+
+    # 公开会话：只读权限
+    if session.is_public:
+        return session, True
+
+    # 私密会话，非所有者：拒绝访问
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Session not found"
+    )
+
+
 def _save_execution_step(
     db: Session,
     session_id: str,
@@ -192,16 +253,14 @@ def _save_execution_step(
         else:
             event_type = "step"
 
-        # 非阻塞推送（如果队列满则丢弃旧事件）
-        try:
-            queue.put_nowait({
-                "data": event_data,
-                "event": event_type,
-                "id": f"step_{step.id}"
-            })
+        # 非阻塞推送（如果队列满则丢弃最旧的事件，保留最新的）
+        event = {
+            "data": event_data,
+            "event": event_type,
+            "id": f"step_{step.id}"
+        }
+        if _emit_event_nonblocking(queue, event, f"{event_type} for session {session_id}"):
             logger.info(f"[SSE] Emitted {event_type} for session {session_id}")
-        except asyncio.QueueFull:
-            logger.warning(f"[SSE] Queue full for session {session_id}, dropping event")
 
     except Exception as e:
         logger.warning(f"[SSE] Failed to emit event: {e}")
@@ -388,17 +447,15 @@ async def _run_agent_loop(
 
                     # 实时推送 SSE 事件
                     queue = get_event_queue(session_id)
-                    try:
-                        queue.put_nowait({
-                            "event": "thinking_delta",
-                            "data": {
-                                "type": "step",
-                                "data": step.to_dict()
-                            },
-                            "id": f"step_{step.id}_delta"
-                        })
-                    except asyncio.QueueFull:
-                        logger.warning(f"[SSE] Queue full, dropping delta event")
+                    delta_event = {
+                        "event": "thinking_delta",
+                        "data": {
+                            "type": "step",
+                            "data": step.to_dict()
+                        },
+                        "id": f"step_{step.id}_delta"
+                    }
+                    _emit_event_nonblocking(queue, delta_event, "thinking_delta")
 
                 elif event_type == "tool_calls":
                     # 工具调用确定
@@ -611,11 +668,13 @@ async def _run_agent_loop(
 @router.get("", response_model=list[MessageResponse])
 async def list_messages(
     session_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ) -> list[Message]:
-    """获取会话中的所有消息。"""
-    _verify_session_access(session_id, current_user.id, db)
+    """获取会话中的所有消息。支持公开会话的只读访问。"""
+    session, is_read_only = _verify_session_access_with_read_only(
+        session_id, current_user, db
+    )
 
     return db.query(Message).filter(
         Message.session_id == session_id
@@ -715,26 +774,20 @@ async def create_message(
 
                 # 推送完成事件
                 queue = get_event_queue(session_id)
-                try:
-                    queue.put_nowait({
-                        "event": "done",
-                        "data": {"done": True}
-                    })
-                except:
-                    pass
+                _emit_event_nonblocking(queue, {
+                    "event": "done",
+                    "data": {"done": True}
+                }, "done")
 
             except Exception as e:
                 logger.error(f"Agent loop failed: {e}", exc_info=True)
 
                 # 推送错误事件
                 queue = get_event_queue(session_id)
-                try:
-                    queue.put_nowait({
-                        "event": "error",
-                        "data": {"error": str(e)}
-                    })
-                except:
-                    pass
+                _emit_event_nonblocking(queue, {
+                    "event": "error",
+                    "data": {"error": str(e)}
+                }, "error")
 
                 # 保存错误消息到数据库
                 bg_assistant_message = bg_db.query(Message).filter(
@@ -772,14 +825,16 @@ async def create_message(
 @router.get("/_internal/latest/execution-steps", response_model=list[dict])
 async def get_latest_execution_steps(
     session_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ) -> list[dict]:
     """获取会话中最新一条消息的执行步骤（用于轮询最新进度）。
 
     使用 /_internal/ 前缀避免与 /{message_id}/execution-steps 路由冲突。
     """
-    _verify_session_access(session_id, current_user.id, db)
+    session, is_read_only = _verify_session_access_with_read_only(
+        session_id, current_user, db
+    )
 
     latest_message = db.query(Message).filter(
         Message.session_id == session_id,
@@ -811,11 +866,13 @@ async def get_latest_execution_steps(
 async def get_execution_steps(
     session_id: str,
     message_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ) -> list[dict]:
     """获取指定消息的所有执行步骤（实时进度）。"""
-    _verify_session_access(session_id, current_user.id, db)
+    session, is_read_only = _verify_session_access_with_read_only(
+        session_id, current_user, db
+    )
 
     steps = db.query(AgentExecutionStep).filter(
         AgentExecutionStep.session_id == session_id,
@@ -828,7 +885,7 @@ async def get_execution_steps(
 @router.get("/stream")
 async def stream_execution_steps(
     session_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     """SSE流端点，实时推送执行步骤
@@ -838,7 +895,9 @@ async def stream_execution_steps(
     - 历史数据需要通过 /execution-steps 端点获取
     """
 
-    _verify_session_access(session_id, current_user.id, db)
+    session, is_read_only = _verify_session_access_with_read_only(
+        session_id, current_user, db
+    )
 
     async def event_generator():
         queue = get_event_queue(session_id)

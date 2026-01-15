@@ -4,6 +4,8 @@ let sessions = [];
 let currentUser = null;
 let sidebarVisible = false;
 let currentStreamingMessage = null; // 当前正在生成的消息容器
+let isReadOnlyMode = false;
+let isSessionOwner = true;
 
 // DOM 元素引用
 const elements = {
@@ -19,7 +21,11 @@ const elements = {
     refreshPreviewBtn: document.getElementById('refreshPreviewBtn'),
     showSessionsBtn: document.getElementById('showSessionsBtn'),
     newSessionInlineBtn: document.getElementById('newSessionInlineBtn'),
-    currentSessionTitle: document.getElementById('currentSessionTitle')
+    currentSessionTitle: document.getElementById('currentSessionTitle'),
+    shareBtn: document.getElementById('shareBtn'),
+    experienceBtn: document.getElementById('experienceBtn'),
+    setPublicBtn: document.getElementById('setPublicBtn'),
+    readOnlyBanner: document.getElementById('readOnlyBanner')
 };
 
 // 工具函数
@@ -147,6 +153,92 @@ function _createExecutionStepElement(step) {
     `;
 
     return stepDiv;
+}
+
+/**
+ * 合并执行步骤（前端显示优化）
+ * @param {Array} steps - 原始步骤列表
+ * @returns {Array} - 合并后的步骤列表
+ */
+function _mergeExecutionSteps(steps) {
+    if (!steps || steps.length === 0) return [];
+
+    // 按 iteration 分组
+    const groups = new Map();
+
+    for (const step of steps) {
+        const iteration = step.iteration;
+
+        if (!groups.has(iteration)) {
+            groups.set(iteration, []);
+        }
+        groups.get(iteration).push(step);
+    }
+
+    // 合并每个组
+    const mergedSteps = [];
+
+    for (const [iteration, groupSteps] of groups) {
+        // 1. 合并 thinking 步骤（取最后一个有内容的）
+        const thinkingSteps = groupSteps.filter(s => s.status === 'thinking');
+        if (thinkingSteps.length > 0) {
+            // 取最后一个有内容的 thinking
+            const lastThinking = thinkingSteps[thinkingSteps.length - 1];
+            mergedSteps.push({
+                ...lastThinking,
+                _merged: true,  // 标记为合并后的步骤
+                _originalCount: thinkingSteps.length
+            });
+        }
+
+        // 2. 合并 tool 步骤（按 tool_call_id 分组）
+        const toolSteps = groupSteps.filter(s =>
+            ['tool_calling', 'tool_executing', 'tool_completed'].includes(s.status)
+        );
+
+        // 按 tool_call_id 分组
+        const toolGroups = new Map();
+        for (const step of toolSteps) {
+            const key = step.tool_call_id || step.tool_name;
+            if (!toolGroups.has(key)) {
+                toolGroups.set(key, []);
+            }
+            toolGroups.get(key).push(step);
+        }
+
+        // 合并每个工具的步骤
+        for (const [key, toolGroupSteps] of toolGroups) {
+            // 按状态优先级：completed > executing > calling
+            const priority = {
+                'tool_completed': 3,
+                'tool_executing': 2,
+                'tool_calling': 1
+            };
+
+            toolGroupSteps.sort((a, b) => priority[b.status] - priority[a.status]);
+
+            // 取优先级最高的作为主步骤
+            const mainStep = toolGroupSteps[0];
+
+            // 合并所有信息
+            const mergedToolStep = {
+                ...mainStep,
+                _merged: true,
+                _originalCount: toolGroupSteps.length,
+                // 合并工具调用信息
+                tool_name: mainStep.tool_name,
+                tool_arguments: mainStep.tool_arguments,
+                tool_result: toolGroupSteps.find(s => s.tool_result)?.tool_result || null,
+                tool_error: toolGroupSteps.find(s => s.tool_error)?.tool_error || null
+            };
+
+            mergedSteps.push(mergedToolStep);
+        }
+
+        // 3. 不显示 completed 步骤（因为最后一步已经显示完成状态）
+    }
+
+    return mergedSteps;
 }
 
 /**
@@ -287,6 +379,30 @@ const ui = {
         bubble.textContent = text;
         div.appendChild(bubble);
         elements.messagesContainer.appendChild(div);
+    },
+
+    setReadOnlyMode(enabled) {
+        isReadOnlyMode = enabled;
+        document.body.classList.toggle('read-only-mode', enabled);
+
+        if (enabled) {
+            elements.readOnlyBanner.style.display = 'flex';
+            elements.messageInput.disabled = true;
+            elements.messageInput.placeholder = '只读模式，无法发送消息';
+        } else {
+            elements.readOnlyBanner.style.display = 'none';
+            elements.messageInput.disabled = false;
+            elements.messageInput.placeholder = '描述你的需求或修改建议...';
+        }
+        // 按钮显示由 selectSession 统一控制
+    },
+
+    showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
     }
 };
 
@@ -336,10 +452,39 @@ function renderSessions() {
 async function selectSession(session) {
     currentSession = session;
     elements.currentSessionTitle.textContent = session.title;
+
+    // 获取完整会话详情以检查 is_public 和所有权
+    try {
+        const sessionDetail = await api.getSession(session.id);
+        isSessionOwner = sessionDetail.is_owner;
+
+        if (!isSessionOwner) {
+            if (sessionDetail.is_public) {
+                ui.setReadOnlyMode(true);
+            } else {
+                alert('您没有权限访问此会话');
+                window.location.href = '/';
+                return;
+            }
+        } else {
+            ui.setReadOnlyMode(false);
+        }
+
+        // 按钮显示控制
+        elements.experienceBtn.style.display = 'inline-flex';
+        elements.shareBtn.style.display = 'inline-flex';
+        elements.setPublicBtn.style.display = isSessionOwner && !sessionDetail.is_public ? 'inline-flex' : 'none';
+        elements.refreshPreviewBtn.style.display = 'inline-flex';
+    } catch (error) {
+        console.error('Failed to fetch session details:', error);
+    }
+
     renderSessions();
     await loadMessages();
     ui.updatePreview();
-    ui.enableMessageForm();
+    if (!isReadOnlyMode) {
+        ui.enableMessageForm();
+    }
 }
 
 async function createNewSession() {
@@ -409,30 +554,18 @@ async function renderMessages(messages) {
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
 
-        // === 新增：加载并显示执行步骤 ===
+        // === 加载并显示执行步骤 ===
         if (message.role === 'assistant') {
             try {
                 const steps = await api.getExecutionSteps(currentSession.id, message.id);
                 if (steps && steps.length > 0) {
-                    // 显示执行步骤
-                    _renderExecutionSteps(contentDiv, steps);
+                    // 合并步骤后再显示（避免重复）
+                    const mergedSteps = _mergeExecutionSteps(steps);
+                    _renderExecutionSteps(contentDiv, mergedSteps);
                 }
             } catch (error) {
                 console.error('Failed to load execution steps:', error);
             }
-        }
-
-        // 显示思考内容（从 message.reasoning_content）
-        if (message.reasoning_content) {
-            const reasoningDiv = document.createElement('div');
-            reasoningDiv.className = 'message-reasoning';
-            reasoningDiv.innerHTML = `
-                <details open>
-                    <summary>🤔 思考过程</summary>
-                    <pre>${utils.escapeHtml(message.reasoning_content)}</pre>
-                </details>
-            `;
-            contentDiv.appendChild(reasoningDiv);
         }
 
         // 显示工具调用（从 message.tool_calls）
@@ -460,21 +593,24 @@ async function renderMessages(messages) {
             contentDiv.appendChild(toolsDiv);
         }
 
-        // 显示消息内容
-        const bubble = document.createElement('div');
-        bubble.className = 'message-bubble';
+        // 显示消息内容（只有在有内容时才显示）
+        if (message.content && message.content.trim()) {
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
 
-        if (message.role === 'assistant') {
-            bubble.innerHTML = utils.renderMarkdown(message.content);
-        } else {
-            bubble.textContent = message.content;
+            if (message.role === 'assistant') {
+                bubble.innerHTML = utils.renderMarkdown(message.content);
+            } else {
+                bubble.textContent = message.content;
+            }
+
+            contentDiv.appendChild(bubble);
         }
 
+        // 始终显示时间戳
         const time = document.createElement('div');
         time.className = 'message-time';
         time.textContent = utils.formatTime(message.created_at);
-
-        contentDiv.appendChild(bubble);
         contentDiv.appendChild(time);
 
         div.appendChild(avatarDiv);
@@ -517,9 +653,6 @@ async function sendMessage(e) {
         </div>
         <div class="message-content stream-content">
             <div class="message-execution-steps"></div>
-            <div class="message-bubble streaming">
-                <span class="typing-cursor">▋</span>
-            </div>
         </div>
     `;
     elements.messagesContainer.appendChild(aiDiv);
@@ -542,20 +675,39 @@ async function sendMessage(e) {
             // onSync: 处理同步事件（重连时）
             onSync: (data) => {
                 console.log('[SSE] Sync event, loading history...');
+                console.log('[SSE] Sync data:', data);
                 if (data.is_running && data.latest_step) {
                     // 从数据库加载完整历史
                     api.getExecutionSteps(currentSession.id, data.message_id)
                         .then(steps => {
-                            // 渲染历史步骤
-                            steps.forEach(step => {
-                                const key = step.tool_call_id
-                                    ? `${step.iteration}-${step.tool_call_id}`
-                                    : `${step.iteration}-thinking`;
+                            console.log('[SSE] Loaded steps from API:', steps.length, 'steps');
+                            console.log('[SSE] Steps:', steps.map(s => ({ id: s.id, status: s.status, time: s.created_at, hasReasoning: !!s.reasoning_content })));
+
+                            // 先合并步骤（避免重复显示）
+                            const mergedSteps = _mergeExecutionSteps(steps);
+                            console.log('[SSE] Merged steps:', mergedSteps.length);
+
+                            // 渲染合并后的步骤
+                            mergedSteps.forEach(step => {
+                                // 使用与 onEvent 一致的键策略
+                                let key;
+                                if (step.status === 'thinking') {
+                                    key = `${step.iteration}-thinking`;
+                                } else {
+                                    key = step.id || `${step.iteration}-${step.tool_call_id || step.tool_name}`;
+                                }
 
                                 if (!stepMap.has(key)) {
                                     const stepDiv = _createExecutionStepElement(step);
                                     stepsContainer.appendChild(stepDiv);
                                     stepMap.set(key, stepDiv);
+                                } else {
+                                    // 已存在，更新内容和状态
+                                    const existingDiv = stepMap.get(key);
+                                    _updateStepStatus(existingDiv, step);
+                                    if (step.reasoning_content) {
+                                        _updateReasoningContent(existingDiv, step.reasoning_content);
+                                    }
                                 }
                             });
                         });
@@ -569,14 +721,28 @@ async function sendMessage(e) {
                 if (data.type === 'step') {
                     const step = data.data;
 
-                    // 使用 step.id 作为唯一键（更可靠）
-                    const key = step.id || `${step.iteration}-${step.tool_call_id || 'thinking'}`;
+                    // 跳过 completed 步骤（前端不显示）
+                    if (step.status === 'completed') {
+                        console.log('[SSE] Skipping completed step');
+                        return;
+                    }
+
+                    // 使用与 merge 逻辑一致的键策略：
+                    // - thinking 步骤：使用 iteration-thinking 作为键（同一 iteration 的 thinking 只显示一个）
+                    // - tool 步骤：使用 iteration-tool_call_id 作为键
+                    let key;
+                    if (step.status === 'thinking') {
+                        key = `${step.iteration}-thinking`;
+                    } else {
+                        key = step.id || `${step.iteration}-${step.tool_call_id || step.tool_name}`;
+                    }
 
                     // 检查是否已存在
                     let stepDiv = stepMap.get(key);
 
                     if (!stepDiv) {
                         // 不存在，创建新步骤元素（只创建一次）
+                        console.log('[SSE] Creating new step element:', key, 'hasReasoning:', !!step.reasoning_content);
                         stepDiv = _createExecutionStepElement(step);
                         stepsContainer.appendChild(stepDiv);
                         stepMap.set(key, stepDiv);
@@ -586,8 +752,9 @@ async function sendMessage(e) {
                         _updateStepStatus(stepDiv, step);
                     }
 
-                    // 处理 thinking_delta 增量更新（特殊处理）
-                    if (event === 'thinking_delta' && step.reasoning_content) {
+                    // 处理 reasoning_content 更新（thinking_delta 或普通 step 事件）
+                    if (step.reasoning_content) {
+                        console.log('[SSE] Updating reasoning content:', key, 'length:', step.reasoning_content.length);
                         _updateReasoningContent(stepDiv, step.reasoning_content);
                         stepsContainer.scrollTop = stepsContainer.scrollHeight;
                     }
@@ -613,8 +780,36 @@ async function sendMessage(e) {
             // onComplete: 处理完成
             onComplete: async () => {
                 console.log('[SSE] Stream completed');
-                await loadMessages();
-                ui.refreshPreview();  // 立即刷新（后端已确保文件写入完成）
+
+                // 获取最终消息内容，如果有文本回复则添加 message-bubble
+                try {
+                    const messages = await api.listMessages(currentSession.id);
+                    const lastAiMsg = messages.filter(m => m.role === 'assistant').pop();
+
+                    if (lastAiMsg && lastAiMsg.content && lastAiMsg.content.trim()) {
+                        // 有文本回复，添加 message-bubble
+                        const existingBubble = streamContentDiv.querySelector('.message-bubble');
+                        if (!existingBubble) {
+                            const bubble = document.createElement('div');
+                            bubble.className = 'message-bubble';
+                            bubble.innerHTML = utils.renderMarkdown(lastAiMsg.content);
+                            streamContentDiv.appendChild(bubble);
+
+                            // 添加时间戳
+                            const timeDiv = document.createElement('div');
+                            timeDiv.className = 'message-time';
+                            timeDiv.textContent = utils.formatTime(lastAiMsg.created_at);
+                            streamContentDiv.appendChild(timeDiv);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch final message:', error);
+                }
+
+                // 移除 streaming 状态
+                aiDiv.classList.remove('streaming');
+
+                ui.refreshPreview();
                 elements.messageInput.disabled = false;
                 elements.messageInput.focus();
             }
@@ -697,6 +892,42 @@ function setupEventListeners() {
     elements.refreshPreviewBtn.addEventListener('click', ui.refreshPreview);
     elements.showSessionsBtn.addEventListener('click', ui.toggleSidebar);
     elements.newSessionInlineBtn.addEventListener('click', createNewSession);
+
+    // 体验按钮：打开新窗口
+    elements.experienceBtn.addEventListener('click', () => {
+        if (currentSession) {
+            const appUrl = `${window.location.origin}/app/${currentSession.id}`;
+            window.open(appUrl, '_blank');
+        }
+    });
+
+    // 分享按钮：复制链接
+    elements.shareBtn.addEventListener('click', async () => {
+        if (currentSession) {
+            const shareUrl = `${window.location.origin}/chat/${currentSession.id}`;
+            try {
+                await navigator.clipboard.writeText(shareUrl);
+                ui.showToast('链接已复制到剪贴板');
+            } catch (error) {
+                console.error('Failed to copy:', error);
+                // 降级方案：提示用户手动复制
+                prompt('请复制链接：', shareUrl);
+            }
+        }
+    });
+
+    // 设置公开按钮
+    elements.setPublicBtn.addEventListener('click', async () => {
+        if (!currentSession) return;
+        try {
+            await api.updateSession(currentSession.id, { is_public: true });
+            ui.showToast('已设置为公开分享');
+            elements.setPublicBtn.style.display = 'none';
+        } catch (error) {
+            console.error('Failed to set public:', error);
+            ui.showToast('设置失败，请重试', 'error');
+        }
+    });
 
     elements.messageInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {

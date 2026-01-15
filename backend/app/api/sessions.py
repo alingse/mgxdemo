@@ -51,13 +51,12 @@ async def create_session(
 @router.get("/{session_id}", response_model=SessionDetail)
 async def get_session(
     session_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
-    """Get a session by ID."""
+    """Get a session by ID. Allows public access if is_public=True."""
     session = db.query(SessionModel).filter(
-        SessionModel.id == session_id,
-        SessionModel.user_id == current_user.id
+        SessionModel.id == session_id
     ).first()
 
     if not session:
@@ -66,7 +65,31 @@ async def get_session(
             detail="Session not found"
         )
 
-    return session
+    # 检查权限：所有者或公开会话
+    is_owner = current_user and current_user.id == session.user_id
+    if not is_owner and not session.is_public:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found"
+        )
+
+    # 加载消息
+    from app.models.message import Message
+    messages = db.query(Message).filter(
+        Message.session_id == session_id
+    ).order_by(Message.created_at.asc()).all()
+
+    # 构建响应
+    result = SessionDetail(
+        id=session.id,
+        title=session.title,
+        is_public=session.is_public,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
+        messages=messages,
+        is_owner=is_owner
+    )
+    return result
 
 
 @router.put("/{session_id}", response_model=SessionResponse)
