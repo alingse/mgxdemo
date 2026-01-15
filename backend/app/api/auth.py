@@ -44,6 +44,7 @@ async def login(user_login: UserLogin, db: Session = Depends(get_db)):
         httponly=True,
         secure=False,  # 开发环境用 False，生产环境应设为 True
         samesite="lax",
+        max_age=30 * 24 * 60 * 60,  # 30 天（秒）
     )
     return response
 
