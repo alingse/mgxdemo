@@ -3,7 +3,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_current_user_optional
 from app.database import get_db
 from app.models.session import Session as SessionModel
 from app.models.todo import TodoSnapshot

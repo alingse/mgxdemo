@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import json
 import logging
 import asyncio
@@ -319,7 +320,7 @@ async def _run_agent_loop(
     db: Session,
     assistant_message: Message
 ) -> tuple:
-    """运行 AI agent 循环。"""
+    """运行 AI agent 循环（支持流式推理）。"""
     # 添加开始日志
     logger.info(f"=== _run_agent_loop START: session={session_id}, message_id={assistant_message.id} ===")
 
@@ -331,7 +332,7 @@ async def _run_agent_loop(
 
     for iteration in range(1, _MAX_AGENT_ITERATIONS + 1):
         # 1. 先创建空的 THINKING 状态（让前端立即知道开始思考）
-        _save_execution_step(
+        step = _save_execution_step(
             db=db,
             session_id=session_id,
             message_id=assistant_message.id,
@@ -358,29 +359,87 @@ async def _run_agent_loop(
                     f"value='{msg.get('reasoning_content', 'MISSING')[:50]}'"
                 )
 
-        logger.info(f"=== Iteration {iteration}: Calling chat_with_tools ===")
+        logger.info(f"=== Iteration {iteration}: Calling chat_with_tools_streaming ===")
         logger.info(f"  Messages count: {len(ai_messages)}")
         logger.info(f"  Tools count: {len(tools_schema)}")
 
+        # 累积的思考内容
+        accumulated_reasoning = ""
+        tool_calls = None
+
         try:
-            assistant_response, tool_calls, reasoning_content = await ai_service.chat_with_tools(
+            # 使用流式 API
+            async for event in ai_service.chat_with_tools_streaming(
                 messages=ai_messages,
                 tools=tools_schema
-            )
-            logger.info(f"=== Iteration {iteration}: chat_with_tools returned ===")
-            logger.info(f"  Response length: {len(assistant_response)}")
-            logger.info(f"  Tool calls count: {len(tool_calls) if tool_calls else 0}")
-            logger.info(f"  Reasoning length: {len(reasoning_content) if reasoning_content else 0}")
+            ):
+                event_type = event.get("type")
+
+                if event_type == "reasoning_delta":
+                    # 思考内容增量
+                    accumulated_reasoning = event.get("reasoning_content", "")
+                    delta_content = event.get("content", "")
+
+                    logger.info(f"=== Reasoning delta: {len(delta_content)} chars, total: {len(accumulated_reasoning)} ===")
+
+                    # 更新数据库中的 reasoning_content
+                    step.reasoning_content = accumulated_reasoning
+                    db.commit()
+
+                    # 实时推送 SSE 事件
+                    queue = get_event_queue(session_id)
+                    try:
+                        queue.put_nowait({
+                            "event": "thinking_delta",
+                            "data": {
+                                "type": "step",
+                                "data": step.to_dict()
+                            },
+                            "id": f"step_{step.id}_delta"
+                        })
+                    except asyncio.QueueFull:
+                        logger.warning(f"[SSE] Queue full, dropping delta event")
+
+                elif event_type == "tool_calls":
+                    # 工具调用确定
+                    tool_calls = event.get("tool_calls")
+                    accumulated_reasoning = event.get("reasoning_content", accumulated_reasoning)
+
+                    logger.info(f"=== Tool calls determined: {len(tool_calls)} calls ===")
+
+                    # 保存 TOOL_CALLING 状态
+                    _save_execution_step(
+                        db=db,
+                        session_id=session_id,
+                        message_id=assistant_message.id,
+                        user_id=user_id,
+                        iteration=iteration,
+                        status=ExecutionStatus.TOOL_CALLING,
+                        reasoning_content=accumulated_reasoning,
+                        progress=min(20 + iteration * 8, 90)
+                    )
+
+                elif event_type == "done":
+                    # 完成
+                    assistant_response = event.get("content", "")
+                    tool_calls = event.get("tool_calls")
+                    accumulated_reasoning = event.get("reasoning_content", accumulated_reasoning)
+
+                    logger.info(f"=== Iteration {iteration}: streaming completed ===")
+                    logger.info(f"  Response length: {len(assistant_response)}")
+                    logger.info(f"  Tool calls count: {len(tool_calls) if tool_calls else 0}")
+                    logger.info(f"  Reasoning length: {len(accumulated_reasoning)}")
+                    break
+
         except Exception as e:
-            logger.error(f"=== Iteration {iteration}: chat_with_tools FAILED ===")
+            logger.error(f"=== Iteration {iteration}: chat_with_tools_streaming FAILED ===")
             logger.error(f"  Error: {e}", exc_info=True)
             raise
 
-        # 无论是否有 reasoning_content，都创建一个 THINKING 状态记录
-        # 这样前端始终能看到思考阶段
-        if reasoning_content:
-            final_reasoning = reasoning_content
-            logger.info(f"Reasoning (iter {iteration}): {reasoning_content[:500]}...")
+        # 无论是否有 reasoning_content，都保存最终的 THINKING 状态记录
+        if accumulated_reasoning:
+            final_reasoning = accumulated_reasoning
+            logger.info(f"Final reasoning (iter {iteration}): {accumulated_reasoning[:500]}...")
 
         _save_execution_step(
             db=db,
@@ -389,7 +448,7 @@ async def _run_agent_loop(
             user_id=user_id,
             iteration=iteration,
             status=ExecutionStatus.THINKING,
-            reasoning_content=reasoning_content,
+            reasoning_content=accumulated_reasoning,
             progress=min(15 + iteration * 5, 85)
         )
 
@@ -404,7 +463,7 @@ async def _run_agent_loop(
 
         # DeepSeek API 要求：如果有 tool_calls，必须包含 reasoning_content 字段
         if tool_calls:
-            assistant_msg["reasoning_content"] = reasoning_content or ""
+            assistant_msg["reasoning_content"] = accumulated_reasoning or ""
             assistant_msg["tool_calls"] = tool_calls
             # 打印调试信息
             logger.info(
@@ -412,8 +471,8 @@ async def _run_agent_loop(
                 f"reasoning_content_length={len(assistant_msg['reasoning_content'])}, "
                 f"tool_calls_count={len(tool_calls)}"
             )
-        elif reasoning_content:
-            assistant_msg["reasoning_content"] = reasoning_content
+        elif accumulated_reasoning:
+            assistant_msg["reasoning_content"] = accumulated_reasoning
 
         ai_messages.append(assistant_msg)
 

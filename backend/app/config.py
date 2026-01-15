@@ -28,6 +28,7 @@ class Settings(BaseSettings):
 
     # Agent Loop Configuration
     enable_agent_loop: bool = True
+    enable_streaming_reasoning: bool = True  # 启用流式推理内容传输
     tool_execution_timeout: int = 30  # seconds
     max_tool_calls_per_message: int = 10
 

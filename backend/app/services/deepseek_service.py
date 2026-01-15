@@ -289,3 +289,153 @@ class DeepSeekService(AIService):
                 message.reasoning_content = None
 
         logger.info("Cleared reasoning_content from message history")
+
+    async def chat_with_tools_streaming(
+        self,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]]
+    ) -> AsyncIterator[dict]:
+        """流式工具调用对话，支持实时推送 reasoning_content
+
+        Args:
+            messages: 对话历史
+            tools: 可用工具列表
+
+        Yields:
+            dict with keys:
+                - type: "reasoning_delta" | "tool_calls" | "done"
+                - content: reasoning_content 增量内容 (reasoning_delta)
+                - tool_calls: 工具调用列表 (tool_calls, done)
+                - reasoning_content: 完整思考内容 (done)
+                - content: 最终回复内容 (done)
+
+        Example:
+            async for event in service.chat_with_tools_streaming(messages, tools):
+                if event["type"] == "reasoning_delta":
+                    print(f"思考: {event['content']}")
+                elif event["type"] == "tool_calls":
+                    print(f"工具调用: {event['tool_calls']}")
+                elif event["type"] == "done":
+                    print(f"完成: {event['content']}")
+        """
+        logger.info("=== chat_with_tools_streaming START ===")
+        logger.info(f"  Model: {self.model}")
+        logger.info(f"  Enable reasoning: {self.enable_reasoning}")
+
+        messages = _ensure_system_prompt(messages, _DEEPSEEK_SYSTEM_PROMPT)
+
+        logger.info(
+            f"DeepSeek chat_with_tools_streaming: {len(messages)} messages, "
+            f"{len(tools)} tools, reasoning={self.enable_reasoning}"
+        )
+
+        request_params = {
+            "model": self.model,
+            "messages": messages,
+            "tools": tools,
+            "tool_choice": "auto",
+            "stream": True  # 启用流式
+        }
+
+        if self.enable_reasoning:
+            request_params["extra_body"] = {"thinking": {"type": "enabled"}}
+
+        logger.info("=== Calling DeepSeek API (streaming) ===")
+
+        accumulated_reasoning = ""
+        accumulated_content = ""
+
+        try:
+            stream = await self.client.chat.completions.create(**request_params)
+
+            async for chunk in stream:
+                if not chunk.choices:
+                    continue
+
+                delta = chunk.choices[0].delta
+
+                # 处理 reasoning_content 增量（思考内容）
+                if hasattr(delta, 'reasoning_content') and delta.reasoning_content:
+                    accumulated_reasoning += delta.reasoning_content
+                    yield {
+                        "type": "reasoning_delta",
+                        "content": delta.reasoning_content,
+                        "reasoning_content": accumulated_reasoning
+                    }
+                    logger.debug(f"Reasoning delta: {len(delta.reasoning_content)} chars")
+
+                # 处理 content 增量（回复内容）
+                if delta.content:
+                    accumulated_content += delta.content
+
+                # 检测工具调用完成（finish_reason 为 tool_calls 或 stop）
+                finish_reason = chunk.choices[0].finish_reason if chunk.choices else None
+
+                # 检测 tool_calls（当检测到 tool_calls 时表示工具调用已确定）
+                if hasattr(delta, 'tool_calls') and delta.tool_calls:
+                    # 注意：流式响应中的 tool_calls 可能是增量构建的
+                    # 我们需要等待 finish_reason 才能确定完整的 tool_calls
+                    pass
+
+                # 流结束
+                if finish_reason:
+                    logger.info(f"=== Stream finished: {finish_reason} ===")
+
+                    # 获取最终的完整响应（通过最后一个 chunk）
+                    final_message = chunk.choices[0].message if hasattr(chunk.choices[0], 'message') else None
+
+                    if final_message:
+                        # 最终的 reasoning_content
+                        if hasattr(final_message, 'reasoning_content') and final_message.reasoning_content:
+                            accumulated_reasoning = final_message.reasoning_content
+
+                        # 最终的 content
+                        if final_message.content:
+                            accumulated_content = final_message.content
+
+                        # 最终的 tool_calls
+                        tool_calls_history = None
+                        if hasattr(final_message, 'tool_calls') and final_message.tool_calls:
+                            tool_calls_history = _build_tool_calls_history(final_message.tool_calls)
+                            logger.info(f"Final tool_calls: {len(tool_calls_history)} calls")
+
+                            # 有工具调用：返回 tool_calls 事件
+                            yield {
+                                "type": "tool_calls",
+                                "tool_calls": tool_calls_history,
+                                "reasoning_content": accumulated_reasoning
+                            }
+                        else:
+                            # 没有工具调用：直接返回 done
+                            yield {
+                                "type": "done",
+                                "content": accumulated_content,
+                                "tool_calls": None,
+                                "reasoning_content": accumulated_reasoning
+                            }
+                    else:
+                        # 无法获取最终消息，使用累积的数据
+                        yield {
+                            "type": "done",
+                            "content": accumulated_content,
+                            "tool_calls": None,
+                            "reasoning_content": accumulated_reasoning
+                        }
+
+                    break
+
+        except Exception as e:
+            logger.error("=== DeepSeek Streaming API ERROR ===")
+            logger.error(f"  Error type: {type(e).__name__}")
+            logger.error(f"  Error message: {e}", exc_info=True)
+
+            # 流式失败，回退到非流式
+            logger.info("=== Falling back to non-streaming ===")
+            content, tool_calls, reasoning = await self.chat_with_tools(messages, tools)
+
+            yield {
+                "type": "done",
+                "content": content,
+                "tool_calls": tool_calls,
+                "reasoning_content": reasoning
+            }

@@ -144,6 +144,7 @@ h1 {
 
         async with aiofiles.open(file_path, mode='w') as f:
             await f.write(content)
+            await f.flush()  # 确保数据写入 OS，使文件立即可读
 
     async def delete_file(self, user_id: int, session_id: str, filename: str) -> None:
         """Delete a file from the sandbox."""

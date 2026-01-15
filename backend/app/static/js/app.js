@@ -569,23 +569,26 @@ async function sendMessage(e) {
                 if (data.type === 'step') {
                     const step = data.data;
 
-                    // 生成唯一键
-                    const key = step.tool_call_id
-                        ? `${step.iteration}-${step.tool_call_id}`
-                        : `${step.iteration}-thinking`;
+                    // 使用 step.id 作为唯一键（更可靠）
+                    const key = step.id || `${step.iteration}-${step.tool_call_id || 'thinking'}`;
 
                     // 检查是否已存在
-                    if (stepMap.has(key)) {
-                        // 更新现有步骤
-                        const existingStepDiv = stepMap.get(key);
-                        _updateExecutionStepElement(existingStepDiv, step);
-                    } else {
-                        // 创建新步骤
-                        const stepDiv = _createExecutionStepElement(step);
+                    let stepDiv = stepMap.get(key);
+
+                    if (!stepDiv) {
+                        // 不存在，创建新步骤元素（只创建一次）
+                        stepDiv = _createExecutionStepElement(step);
                         stepsContainer.appendChild(stepDiv);
                         stepMap.set(key, stepDiv);
+                        stepsContainer.scrollTop = stepsContainer.scrollHeight;
+                    } else {
+                        // 已存在，更新状态（图标、标题等）
+                        _updateStepStatus(stepDiv, step);
+                    }
 
-                        // 自动滚动
+                    // 处理 thinking_delta 增量更新（特殊处理）
+                    if (event === 'thinking_delta' && step.reasoning_content) {
+                        _updateReasoningContent(stepDiv, step.reasoning_content);
                         stepsContainer.scrollTop = stepsContainer.scrollHeight;
                     }
                 }
@@ -611,7 +614,7 @@ async function sendMessage(e) {
             onComplete: async () => {
                 console.log('[SSE] Stream completed');
                 await loadMessages();
-                setTimeout(() => ui.refreshPreview(), 500);
+                ui.refreshPreview();  // 立即刷新（后端已确保文件写入完成）
                 elements.messageInput.disabled = false;
                 elements.messageInput.focus();
             }
@@ -821,6 +824,55 @@ function _getStepDisplayName(step) {
         }
     }
     return _getStatusText(step.status);
+}
+
+/**
+ * 更新步骤状态（不创建新元素）
+ * @param {HTMLElement} stepDiv - 步骤元素
+ * @param {Object} step - 步骤数据
+ */
+function _updateStepStatus(stepDiv, step) {
+    // 更新 active 状态
+    const isActive = ['thinking', 'tool_calling', 'tool_executing'].includes(step.status);
+    stepDiv.classList.toggle('active', isActive);
+
+    // 更新图标
+    const iconEl = stepDiv.querySelector('.step-icon');
+    if (iconEl) {
+        iconEl.textContent = _getStatusIcon(step.status);
+    }
+
+    // 更新标题
+    const titleEl = stepDiv.querySelector('.step-title');
+    if (titleEl) {
+        titleEl.textContent = _getStepDisplayName(step);
+    }
+}
+
+/**
+ * 更新思考内容（增量更新）
+ * @param {HTMLElement} stepDiv - 步骤元素
+ * @param {string} reasoningContent - 思考内容
+ */
+function _updateReasoningContent(stepDiv, reasoningContent) {
+    // 查找或创建思考内容容器
+    let preEl = stepDiv.querySelector('.step-thinking-content pre');
+
+    if (!preEl) {
+        const stepHeader = stepDiv.querySelector('.step-header');
+        if (!stepHeader) return;
+
+        // 创建新的思考内容区域
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'step-thinking-content';
+        preEl = document.createElement('pre');
+        preEl.textContent = reasoningContent;
+        contentDiv.appendChild(preEl);
+        stepHeader.after(contentDiv);
+    } else {
+        // 更新现有内容
+        preEl.textContent = reasoningContent;
+    }
 }
 
 // 启动应用
