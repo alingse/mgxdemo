@@ -56,13 +56,14 @@ def _truncate_user_input(
 
 def _apply_truncation_strategy(
     messages: list[dict],  # 按时间顺序的所有消息
-    max_history: int = 20
+    max_history: int = 20,
+    max_full_user_messages: int = 100
 ) -> list[dict]:
     """应用历史消息截取策略。
 
     Strategy（保持时间顺序）:
-    - 保留用户第一条消息（重要初始上下文）
     - 保留所有 system 消息（文件操作通知等）
+    - 保留所有用户消息，但对较早的消息内容截断（前 200 字符）
     - 保留最新 N 条 assistant 消息
     - 保留与被保留的 assistant 关联的 tool 消息
 
@@ -71,10 +72,10 @@ def _apply_truncation_strategy(
 
     Example:
         Input:  [system, user1, assist1, tool1, system, user2, assist2, tool2, ...]
-        Output: [system, user1, system, assist2, tool2, ...]
-                 ↑      ↑             ↑        ↑
-            system  第一条      system    最新N条
-            消息    用户消息              assistant+tool
+        Output: [system, user1, user2..., assist2, tool2, ...]
+                 ↑      ↑     ↑           ↑        ↑
+            system  完整  截断        最新N条
+            消息    用户  旧消息      assistant+tool
     """
     # 1. 找出最新 N 条 assistant 消息
     assistant_messages = [m for m in messages if m["role"] == "assistant"]
@@ -87,9 +88,11 @@ def _apply_truncation_strategy(
             for tc in msg["tool_calls"]:
                 tool_call_ids.add(tc.get("id"))
 
-    # 2. 遍历所有消息（保持时间顺序），决定是否保留
+    # 2. 找出所有用户消息，用于判断是否需要截断
+    user_messages = [m for m in messages if m["role"] == "user"]
+
+    # 3. 遍历所有消息（保持时间顺序），决定是否保留
     result_messages = []
-    first_user_kept = False
 
     for msg in messages:
         role = msg["role"]
@@ -98,14 +101,18 @@ def _apply_truncation_strategy(
         if role == "system":
             result_messages.append(msg)
 
-        # 第一条用户消息：保留
-        elif role == "user" and not first_user_kept:
-            result_messages.append(msg)
-            first_user_kept = True
-
-        # 其他用户消息：跳过（截取中间的用户消息）
+        # 用户消息：保留所有，但截断较早的消息内容
         elif role == "user":
-            continue
+            user_index = user_messages.index(msg)
+            # 如果不是最新的 N 条用户消息，截断内容
+            if user_index < len(user_messages) - max_full_user_messages:
+                original_content = msg["content"]
+                # 截断前 200 字符，添加 "..."
+                truncated_content = original_content[:200] + "..." if len(original_content) > 200 else original_content
+                result_messages.append({**msg, "content": truncated_content})
+            else:
+                # 最新的 3 条用户消息保持完整
+                result_messages.append(msg)
 
         # assistant 消息：只在最近的 N 条中保留
         elif role == "assistant":
@@ -462,7 +469,8 @@ async def _prepare_ai_messages(
     if enable_truncation and settings.enable_message_truncation:
         truncated = _apply_truncation_strategy(
             messages=all_messages,
-            max_history=settings.max_history_messages
+            max_history=settings.max_history_messages,
+            max_full_user_messages=settings.max_full_user_messages
         )
         ai_messages.extend(truncated)
     else:
@@ -547,7 +555,8 @@ async def _run_agent_loop(
 
                     logger.info(
                         f"=== Reasoning delta: {len(delta_content)} chars, "
-                        f"total: {len(accumulated_reasoning)} ==="
+                        f"total: {len(accumulated_reasoning)} ===\n"
+                        f"Delta content: {repr(delta_content)}"
                     )
 
                     # 更新数据库中的 reasoning_content
@@ -573,6 +582,13 @@ async def _run_agent_loop(
 
                     logger.info(f"=== Tool calls determined: {len(tool_calls)} calls ===")
                     logger.info(f"  Accumulated response length: {len(accumulated_response)}")
+                    # 打印每个工具调用的详情
+                    for idx, tc in enumerate(tool_calls):
+                        func = tc.get("function", {})
+                        logger.info(
+                            f"  Tool call {idx}: name={func.get('name')}, "
+                            f"arguments={repr(func.get('arguments')[:200] if func.get('arguments') else '{}')}"
+                        )
 
                     # 保存 TOOL_CALLING 状态
                     _save_execution_step(

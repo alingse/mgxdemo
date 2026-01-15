@@ -34,9 +34,10 @@ class Settings(BaseSettings):
 
     # Message Truncation Configuration
     max_user_input_length: int = 1000  # 用户输入最大字符数
-    max_history_messages: int = 20  # 保留的历史消息数量
+    max_history_messages: int = 200  # 保留的历史消息数量
     enable_message_truncation: bool = True  # 是否启用消息截取
     truncation_warning_message: str = "...(消息已截取)"  # 截取提示文本
+    max_full_user_messages: int = 100  # 保留完整内容的最新 N 条用户消息
 
     class Config:
         env_file = ".env"
