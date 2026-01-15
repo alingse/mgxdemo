@@ -1476,8 +1476,9 @@ body {
     /* 聊天区域 */
     .chat-area {
         width: 100%;
-        height: auto;
+        height: 0; /* 重要：让 flex: 1 控制高度，而不是 content */
         flex: 1;
+        min-height: 0; /* 允许 flex 项目正确收缩 */
     }
 
     /* 预览区域 - 默认隐藏 */
