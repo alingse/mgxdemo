@@ -7,6 +7,47 @@ let currentStreamingMessage = null; // 当前正在生成的消息容器
 let isReadOnlyMode = false;
 let isSessionOwner = true;
 
+// 应用常量
+const CONSTANTS = {
+    // 时间相关
+    TOAST_DURATION: 3000,
+    PENDING_MESSAGE_DELAY: 500,
+    SSE_MAX_RETRIES: 5,
+
+    // UI 显示相关
+    STEP_RESULT_MAX_LENGTH: 500,
+    SESSION_TITLE_MAX_LENGTH: 30,
+
+    // 状态文本
+    STATUS_TEXT: {
+        'thinking': '思考中',
+        'tool_calling': '工具调用',
+        'tool_executing': '执行中',
+        'tool_completed': '已完成',
+        'finalizing': '生成最终答案',
+        'completed': '完成',
+        'failed': '失败'
+    },
+
+    // 状态图标
+    STATUS_ICONS: {
+        'thinking': '🤔',
+        'tool_calling': '🔧',
+        'tool_executing': '⚙️',
+        'tool_completed': '✅',
+        'finalizing': '📝',
+        'completed': '✨',
+        'failed': '❌'
+    },
+
+    // Todo 状态图标
+    TODO_ICONS: {
+        'pending': '⏳',
+        'in_progress': '🔄',
+        'completed': '✅'
+    }
+};
+
 // DOM 元素引用
 const elements = {
     sessionSidebar: document.getElementById('sessionSidebar'),
@@ -152,10 +193,13 @@ function _createExecutionStepElement(step) {
 
     // 工具结果
     if (step.tool_result) {
+        const truncated = step.tool_result.length > CONSTANTS.STEP_RESULT_MAX_LENGTH
+            ? step.tool_result.substring(0, CONSTANTS.STEP_RESULT_MAX_LENGTH) + '...'
+            : step.tool_result;
         detailsHtml += `
             <details class="step-details" open>
                 <summary>✓ 执行结果</summary>
-                <pre>${utils.escapeHtml(step.tool_result.substring(0, 500))}${step.tool_result.length > 500 ? '...' : ''}</pre>
+                <pre>${utils.escapeHtml(truncated)}</pre>
             </details>
         `;
     }
@@ -312,46 +356,30 @@ function _renderExecutionSteps(container, steps, isStreaming = false) {
  * 获取状态图标
  */
 function _getStatusIcon(status) {
-    const icons = {
-        'thinking': '🤔',
-        'tool_calling': '🔧',
-        'tool_executing': '⚙️',
-        'tool_completed': '✅',
-        'finalizing': '📝',
-        'completed': '✨',
-        'failed': '❌'
-    };
-    return icons[status] || '•';
+    return CONSTANTS.STATUS_ICONS[status] || '•';
 }
 
 /**
  * 获取状态文本
  */
 function _getStatusText(status) {
-    const texts = {
-        'thinking': '思考中',
-        'tool_calling': '工具调用',
-        'tool_executing': '执行中',
-        'tool_completed': '已完成',
-        'finalizing': '生成最终答案',
-        'completed': '完成',
-        'failed': '失败'
-    };
-    return texts[status] || status;
+    return CONSTANTS.STATUS_TEXT[status] || status;
+}
+
+/**
+ * 创建工具错误元素
+ * @param {string} message - 错误消息
+ * @returns {HTMLElement} - 错误元素
+ */
+function _createToolErrorElement(message) {
+    const div = document.createElement('div');
+    div.className = 'step-error';
+    div.innerHTML = `<strong>❌ 错误:</strong> ${utils.escapeHtml(message)}`;
+    return div;
 }
 
 // UI 操作
 const ui = {
-    /**
-     * HTML 转义
-     */
-    escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    },
-
     toggleSidebar() {
         sidebarVisible = !sidebarVisible;
         elements.sessionSidebar.classList.toggle('open', sidebarVisible);
@@ -480,7 +508,7 @@ const ui = {
         toast.className = `toast toast-${type}`;
         toast.textContent = message;
         document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
+        setTimeout(() => toast.remove(), CONSTANTS.TOAST_DURATION);
     }
 };
 
@@ -705,6 +733,176 @@ async function renderMessages(messages) {
     elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
 }
 
+/**
+ * 创建 SSE 事件处理器
+ * @param {HTMLElement} streamContentDiv - 流式内容容器
+ * @param {HTMLElement} stepsContainer - 步骤容器
+ * @param {HTMLElement} aiDiv - AI 消息容器
+ * @param {Map} stepMap - 步骤映射
+ * @returns {Object} - 事件处理器对象
+ */
+function _createSSEEventHandlers(streamContentDiv, stepsContainer, aiDiv, stepMap) {
+    return {
+        // onSync: 处理同步事件（重连时）
+        onSync: (data) => {
+            console.log('[SSE] Sync event, loading history...');
+            console.log('[SSE] Sync data:', data);
+            if (data.is_running && data.latest_step) {
+                // 从数据库加载完整历史
+                api.getExecutionSteps(currentSession.id, data.message_id)
+                    .then(steps => {
+                        console.log('[SSE] Loaded steps from API:', steps.length, 'steps');
+                        console.log('[SSE] Steps:', steps.map(s => ({ id: s.id, status: s.status, time: s.created_at, hasReasoning: !!s.reasoning_content })));
+
+                        // 先合并步骤（避免重复显示）
+                        const mergedSteps = _mergeExecutionSteps(steps);
+                        console.log('[SSE] Merged steps:', mergedSteps.length);
+
+                        // 渲染合并后的步骤
+                        mergedSteps.forEach(step => {
+                            // 使用与 onEvent 一致的键策略
+                            let key;
+                            if (step.status === 'thinking') {
+                                key = `${step.iteration}-thinking`;
+                            } else if (step.tool_call_id) {
+                                // 工具步骤：使用 tool_call_id 作为 key（覆盖 calling/executing/completed）
+                                key = step.tool_call_id;
+                            } else {
+                                // fallback（如果没有 tool_call_id）
+                                key = `${step.iteration}-${step.tool_name}`;
+                            }
+
+                            if (!stepMap.has(key)) {
+                                const stepDiv = _createExecutionStepElement(step);
+                                stepsContainer.appendChild(stepDiv);
+                                stepMap.set(key, stepDiv);
+                            } else {
+                                // 已存在，更新内容和状态
+                                const existingDiv = stepMap.get(key);
+                                _updateStepStatus(existingDiv, step);
+                                if (step.reasoning_content) {
+                                    _updateReasoningContent(existingDiv, step.reasoning_content, step);
+                                }
+                            }
+                        });
+                        // 滚动主消息容器到底部，确保最新消息可见
+                        elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
+                    });
+            }
+        },
+
+        // onEvent: 处理推送事件
+        onEvent: ({ event, data }) => {
+            console.log('[SSE] Event:', event, data);
+
+            // 处理 todos 更新事件
+            if (event === 'todos_update' && data.todos) {
+                console.log('[SSE] Updating todos:', data);
+                ui.renderTodos(data);
+                return;
+            }
+
+            if (data.type === 'step') {
+                const step = data.data;
+
+                // 跳过 completed 步骤（前端不显示）
+                if (step.status === 'completed') {
+                    console.log('[SSE] Skipping completed step');
+                    return;
+                }
+
+                // 使用与 merge 逻辑一致的键策略：
+                // - thinking 步骤：使用 iteration-thinking 作为键（同一 iteration 的 thinking 只显示一个）
+                // - tool 步骤：使用 tool_call_id 作为统一 key（确保同一工具的不同状态映射到同一个元素）
+                let key;
+                if (step.status === 'thinking') {
+                    key = `${step.iteration}-thinking`;
+                } else if (step.tool_call_id) {
+                    // 工具步骤：使用 tool_call_id 作为 key（覆盖 calling/executing/completed）
+                    key = step.tool_call_id;
+                } else {
+                    // fallback（如果没有 tool_call_id）
+                    key = `${step.iteration}-${step.tool_name}`;
+                }
+
+                // 检查是否已存在
+                let stepDiv = stepMap.get(key);
+
+                if (!stepDiv) {
+                    // 不存在，创建新步骤元素（只创建一次）
+                    console.log('[SSE] Creating new step element:', key, 'hasReasoning:', !!step.reasoning_content);
+                    stepDiv = _createExecutionStepElement(step);
+                    stepsContainer.appendChild(stepDiv);
+                    stepMap.set(key, stepDiv);
+                    // 滚动主消息容器到底部，确保最新消息可见
+                    elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
+                } else {
+                    // 已存在，更新状态（图标、标题等）
+                    _updateStepStatus(stepDiv, step);
+                }
+
+                // 处理 reasoning_content 更新（thinking_delta 或普通 step 事件）
+                if (step.reasoning_content) {
+                    console.log('[SSE] Updating reasoning content:', key, 'length:', step.reasoning_content.length);
+                    _updateReasoningContent(stepDiv, step.reasoning_content, step);
+                    // 滚动主消息容器到底部，确保最新消息可见
+                    elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
+                }
+            }
+        },
+
+        // onError: 处理错误
+        onError: (error) => {
+            console.error('[SSE] Error:', error);
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'execution-step error';
+            errorDiv.appendChild(_createToolErrorElement(error));
+            stepsContainer.appendChild(errorDiv);
+        },
+
+        // onComplete: 处理完成
+        onComplete: async () => {
+            console.log('[SSE] Stream completed');
+
+            // 获取最终消息内容，如果有文本回复则添加 message-bubble
+            try {
+                const messages = await api.listMessages(currentSession.id);
+                const lastAiMsg = messages.filter(m => m.role === 'assistant').pop();
+
+                if (lastAiMsg && lastAiMsg.content && lastAiMsg.content.trim()) {
+                    // 有文本回复，添加 message-bubble
+                    const existingBubble = streamContentDiv.querySelector('.message-bubble');
+                    if (!existingBubble) {
+                        const bubble = document.createElement('div');
+                        bubble.className = 'message-bubble';
+                        bubble.innerHTML = utils.renderMarkdown(lastAiMsg.content);
+                        streamContentDiv.appendChild(bubble);
+
+                        // 添加时间戳
+                        const timeDiv = document.createElement('div');
+                        timeDiv.className = 'message-time';
+                        timeDiv.textContent = utils.formatTime(lastAiMsg.created_at);
+                        streamContentDiv.appendChild(timeDiv);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch final message:', error);
+            }
+
+            // 移除 streaming 状态
+            aiDiv.classList.remove('streaming');
+
+            // 滚动到底部显示完整消息
+            elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
+
+            await ui.loadTodos();
+            ui.refreshPreview();
+            elements.messageInput.disabled = false;
+            elements.messageInput.focus();
+        }
+    };
+}
+
 async function sendMessage(e) {
     e.preventDefault();
 
@@ -758,174 +956,11 @@ async function sendMessage(e) {
         const response = await api.createMessage(currentSession.id, content);
         console.log('[sendMessage] Message created, starting SSE...');
 
-        // 5. 连接SSE流
+        // 5. 创建 SSE 事件处理器并连接
+        const handlers = _createSSEEventHandlers(streamContentDiv, stepsContainer, aiDiv, stepMap);
         const sseClient = new SSEClient(currentSession.id, {
-            maxRetries: 5,
-
-            // onSync: 处理同步事件（重连时）
-            onSync: (data) => {
-                console.log('[SSE] Sync event, loading history...');
-                console.log('[SSE] Sync data:', data);
-                if (data.is_running && data.latest_step) {
-                    // 从数据库加载完整历史
-                    api.getExecutionSteps(currentSession.id, data.message_id)
-                        .then(steps => {
-                            console.log('[SSE] Loaded steps from API:', steps.length, 'steps');
-                            console.log('[SSE] Steps:', steps.map(s => ({ id: s.id, status: s.status, time: s.created_at, hasReasoning: !!s.reasoning_content })));
-
-                            // 先合并步骤（避免重复显示）
-                            const mergedSteps = _mergeExecutionSteps(steps);
-                            console.log('[SSE] Merged steps:', mergedSteps.length);
-
-                            // 渲染合并后的步骤
-                            mergedSteps.forEach(step => {
-                                // 使用与 onEvent 一致的键策略
-                                let key;
-                                if (step.status === 'thinking') {
-                                    key = `${step.iteration}-thinking`;
-                                } else if (step.tool_call_id) {
-                                    // 工具步骤：使用 tool_call_id 作为 key（覆盖 calling/executing/completed）
-                                    key = step.tool_call_id;
-                                } else {
-                                    // fallback（如果没有 tool_call_id）
-                                    key = `${step.iteration}-${step.tool_name}`;
-                                }
-
-                                if (!stepMap.has(key)) {
-                                    const stepDiv = _createExecutionStepElement(step);
-                                    stepsContainer.appendChild(stepDiv);
-                                    stepMap.set(key, stepDiv);
-                                } else {
-                                    // 已存在，更新内容和状态
-                                    const existingDiv = stepMap.get(key);
-                                    _updateStepStatus(existingDiv, step);
-                                    if (step.reasoning_content) {
-                                        _updateReasoningContent(existingDiv, step.reasoning_content, step);
-                                    }
-                                }
-                            });
-                            // 滚动主消息容器到底部，确保最新消息可见
-                            elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
-                        });
-                }
-            },
-
-            // onEvent: 处理推送事件
-            onEvent: ({ event, data }) => {
-                console.log('[SSE] Event:', event, data);
-
-                // 处理 todos 更新事件
-                if (event === 'todos_update' && data.todos) {
-                    console.log('[SSE] Updating todos:', data);
-                    ui.renderTodos(data);
-                    return;
-                }
-
-                if (data.type === 'step') {
-                    const step = data.data;
-
-                    // 跳过 completed 步骤（前端不显示）
-                    if (step.status === 'completed') {
-                        console.log('[SSE] Skipping completed step');
-                        return;
-                    }
-
-                    // 使用与 merge 逻辑一致的键策略：
-                    // - thinking 步骤：使用 iteration-thinking 作为键（同一 iteration 的 thinking 只显示一个）
-                    // - tool 步骤：使用 tool_call_id 作为统一 key（确保同一工具的不同状态映射到同一个元素）
-                    let key;
-                    if (step.status === 'thinking') {
-                        key = `${step.iteration}-thinking`;
-                    } else if (step.tool_call_id) {
-                        // 工具步骤：使用 tool_call_id 作为 key（覆盖 calling/executing/completed）
-                        key = step.tool_call_id;
-                    } else {
-                        // fallback（如果没有 tool_call_id）
-                        key = `${step.iteration}-${step.tool_name}`;
-                    }
-
-                    // 检查是否已存在
-                    let stepDiv = stepMap.get(key);
-
-                    if (!stepDiv) {
-                        // 不存在，创建新步骤元素（只创建一次）
-                        console.log('[SSE] Creating new step element:', key, 'hasReasoning:', !!step.reasoning_content);
-                        stepDiv = _createExecutionStepElement(step);
-                        stepsContainer.appendChild(stepDiv);
-                        stepMap.set(key, stepDiv);
-                        // 滚动主消息容器到底部，确保最新消息可见
-                        elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
-                    } else {
-                        // 已存在，更新状态（图标、标题等）
-                        _updateStepStatus(stepDiv, step);
-                    }
-
-                    // 处理 reasoning_content 更新（thinking_delta 或普通 step 事件）
-                    if (step.reasoning_content) {
-                        console.log('[SSE] Updating reasoning content:', key, 'length:', step.reasoning_content.length);
-                        _updateReasoningContent(stepDiv, step.reasoning_content, step);
-                        // 滚动主消息容器到底部，确保最新消息可见
-                        elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
-                    }
-                }
-            },
-
-            // onError: 处理错误
-            onError: (error) => {
-                console.error('[SSE] Error:', error);
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'execution-step error';
-                const stepError = document.createElement('div');
-                stepError.className = 'step-error';
-                const strong = document.createElement('strong');
-                strong.textContent = '❌ 错误:';
-                const text = document.createTextNode(' ' + error);
-                stepError.appendChild(strong);
-                stepError.appendChild(text);
-                errorDiv.appendChild(stepError);
-                stepsContainer.appendChild(errorDiv);
-            },
-
-            // onComplete: 处理完成
-            onComplete: async () => {
-                console.log('[SSE] Stream completed');
-
-                // 获取最终消息内容，如果有文本回复则添加 message-bubble
-                try {
-                    const messages = await api.listMessages(currentSession.id);
-                    const lastAiMsg = messages.filter(m => m.role === 'assistant').pop();
-
-                    if (lastAiMsg && lastAiMsg.content && lastAiMsg.content.trim()) {
-                        // 有文本回复，添加 message-bubble
-                        const existingBubble = streamContentDiv.querySelector('.message-bubble');
-                        if (!existingBubble) {
-                            const bubble = document.createElement('div');
-                            bubble.className = 'message-bubble';
-                            bubble.innerHTML = utils.renderMarkdown(lastAiMsg.content);
-                            streamContentDiv.appendChild(bubble);
-
-                            // 添加时间戳
-                            const timeDiv = document.createElement('div');
-                            timeDiv.className = 'message-time';
-                            timeDiv.textContent = utils.formatTime(lastAiMsg.created_at);
-                            streamContentDiv.appendChild(timeDiv);
-                        }
-                    }
-                } catch (error) {
-                    console.error('Failed to fetch final message:', error);
-                }
-
-                // 移除 streaming 状态
-                aiDiv.classList.remove('streaming');
-
-                // 滚动到底部显示完整消息
-                elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
-
-                await ui.loadTodos();
-                ui.refreshPreview();
-                elements.messageInput.disabled = false;
-                elements.messageInput.focus();
-            }
+            maxRetries: CONSTANTS.SSE_MAX_RETRIES,
+            ...handlers
         });
 
         sseClient.connect();
@@ -991,7 +1026,7 @@ async function initApp() {
             elements.messageInput.value = pendingMessage;
             setTimeout(() => {
                 elements.messageForm.dispatchEvent(new Event('submit'));
-            }, 500);
+            }, CONSTANTS.PENDING_MESSAGE_DELAY);
         }
     }
 
@@ -999,9 +1034,30 @@ async function initApp() {
 }
 
 function setupEventListeners() {
+    setupNavigationEventListeners();
+    setupMessageEventListeners();
+    setupButtonEventListeners();
+    setupMobileEventListeners();
+}
+
+function setupNavigationEventListeners() {
     elements.newSessionBtn.addEventListener('click', createNewSession);
-    elements.messageForm.addEventListener('submit', sendMessage);
     elements.logoutBtn.addEventListener('click', handleLogout);
+}
+
+function setupMessageEventListeners() {
+    elements.messageForm.addEventListener('submit', sendMessage);
+    elements.messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (!elements.messageInput.disabled && elements.messageInput.value.trim()) {
+                elements.messageForm.dispatchEvent(new Event('submit'));
+            }
+        }
+    });
+}
+
+function setupButtonEventListeners() {
     elements.refreshPreviewBtn.addEventListener('click', ui.refreshPreview);
     elements.mobileMenuBtn.addEventListener('click', () => ui.toggleSidebar());
     elements.showSessionsBtn.addEventListener('click', () => ui.toggleSidebar());
@@ -1042,42 +1098,34 @@ function setupEventListeners() {
             ui.showToast('设置失败，请重试', 'error');
         }
     });
+}
 
-    elements.messageInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            if (!elements.messageInput.disabled && elements.messageInput.value.trim()) {
-                elements.messageForm.dispatchEvent(new Event('submit'));
-            }
-        }
-    });
-
-    // 移动端 Tab 切换
+function setupMobileEventListeners() {
     const mobileTabs = document.getElementById('mobileTabs');
-    if (mobileTabs) {
-        const tabs = mobileTabs.querySelectorAll('.mobile-tab');
-        const mainContainer = document.querySelector('.main-container');
-        const previewArea = document.querySelector('.preview-area');
+    if (!mobileTabs) return;
 
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                const view = tab.dataset.view;
+    const tabs = mobileTabs.querySelectorAll('.mobile-tab');
+    const mainContainer = document.querySelector('.main-container');
+    const previewArea = document.querySelector('.preview-area');
 
-                // 切换 Tab 状态
-                tabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const view = tab.dataset.view;
 
-                // 切换视图
-                if (view === 'preview') {
-                    mainContainer.classList.add('preview-mode');
-                    previewArea.classList.add('active');
-                } else {
-                    mainContainer.classList.remove('preview-mode');
-                    previewArea.classList.remove('active');
-                }
-            });
+            // 切换 Tab 状态
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            // 切换视图
+            if (view === 'preview') {
+                mainContainer.classList.add('preview-mode');
+                previewArea.classList.add('active');
+            } else {
+                mainContainer.classList.remove('preview-mode');
+                previewArea.classList.remove('active');
+            }
         });
-    }
+    });
 }
 
 /**
@@ -1147,8 +1195,10 @@ function _updateExecutionStepElement(stepDiv, step) {
         if (resultDetails) {
             const pre = resultDetails.querySelector('pre');
             if (pre) {
-                pre.textContent = step.tool_result.substring(0, 500) +
-                    (step.tool_result.length > 500 ? '...' : '');
+                const truncated = step.tool_result.length > CONSTANTS.STEP_RESULT_MAX_LENGTH
+                    ? step.tool_result.substring(0, CONSTANTS.STEP_RESULT_MAX_LENGTH) + '...'
+                    : step.tool_result;
+                pre.textContent = truncated;
             }
         }
     }
@@ -1157,21 +1207,14 @@ function _updateExecutionStepElement(stepDiv, step) {
     if (step.tool_error) {
         let errorEl = stepDiv.querySelector('.step-error');
         if (!errorEl) {
-            errorEl = document.createElement('div');
-            errorEl.className = 'step-error';
-            const strong = document.createElement('strong');
-            strong.textContent = '❌ 错误:';
-            const text = document.createTextNode(' ' + step.tool_error);
-            errorEl.appendChild(strong);
-            errorEl.appendChild(text);
+            errorEl = _createToolErrorElement(step.tool_error);
             stepDiv.appendChild(errorEl);
         } else {
             errorEl.textContent = '';
             const strong = document.createElement('strong');
             strong.textContent = '❌ 错误:';
-            const text = document.createTextNode(' ' + step.tool_error);
             errorEl.appendChild(strong);
-            errorEl.appendChild(text);
+            errorEl.appendChild(document.createTextNode(' ' + step.tool_error));
         }
     }
 }
@@ -1199,6 +1242,96 @@ function _getStepDisplayName(step) {
 }
 
 /**
+ * 更新或添加工具参数
+ */
+function _updateToolArguments(stepDiv, toolArguments) {
+    let argsDetails = stepDiv.querySelector('details[data-type="tool-arguments"]');
+    if (!argsDetails) {
+        const stepHeader = stepDiv.querySelector('.step-header');
+        argsDetails = document.createElement('details');
+        argsDetails.className = 'step-details';
+        argsDetails.setAttribute('data-type', 'tool-arguments');
+        argsDetails.open = true;
+
+        const summary = document.createElement('summary');
+        summary.textContent = '🔧 工具参数';
+        argsDetails.appendChild(summary);
+
+        const pre = document.createElement('pre');
+        argsDetails.appendChild(pre);
+
+        if (stepHeader) {
+            stepHeader.after(argsDetails);
+        } else {
+            stepDiv.appendChild(argsDetails);
+        }
+    }
+    const pre = argsDetails.querySelector('pre');
+    if (pre) {
+        const args = typeof toolArguments === 'string'
+            ? JSON.parse(toolArguments)
+            : toolArguments;
+        pre.textContent = JSON.stringify(args, null, 2);
+    }
+}
+
+/**
+ * 更新或添加工具结果
+ */
+function _updateToolResult(stepDiv, toolResult) {
+    let resultDetails = stepDiv.querySelector('details[data-type="tool-result"]');
+    if (!resultDetails) {
+        const stepHeader = stepDiv.querySelector('.step-header');
+        resultDetails = document.createElement('details');
+        resultDetails.className = 'step-details';
+        resultDetails.setAttribute('data-type', 'tool-result');
+        resultDetails.open = true;
+
+        const summary = document.createElement('summary');
+        summary.textContent = '✓ 执行结果';
+        resultDetails.appendChild(summary);
+
+        const pre = document.createElement('pre');
+        resultDetails.appendChild(pre);
+
+        if (stepHeader) {
+            stepHeader.after(resultDetails);
+        } else {
+            stepDiv.appendChild(resultDetails);
+        }
+    }
+    const pre = resultDetails.querySelector('pre');
+    if (pre) {
+        const truncated = toolResult.length > CONSTANTS.STEP_RESULT_MAX_LENGTH
+            ? toolResult.substring(0, CONSTANTS.STEP_RESULT_MAX_LENGTH) + '...'
+            : toolResult;
+        pre.textContent = truncated;
+    }
+}
+
+/**
+ * 更新或添加工具错误
+ */
+function _updateToolError(stepDiv, toolError) {
+    let errorEl = stepDiv.querySelector('.step-error');
+    if (!errorEl) {
+        errorEl = _createToolErrorElement(toolError);
+        const stepHeader = stepDiv.querySelector('.step-header');
+        if (stepHeader) {
+            stepHeader.after(errorEl);
+        } else {
+            stepDiv.appendChild(errorEl);
+        }
+    } else {
+        errorEl.textContent = '';
+        const strong = document.createElement('strong');
+        strong.textContent = '❌ 错误:';
+        errorEl.appendChild(strong);
+        errorEl.appendChild(document.createTextNode(' ' + toolError));
+    }
+}
+
+/**
  * 更新步骤状态（不创建新元素）
  * @param {HTMLElement} stepDiv - 步骤元素
  * @param {Object} step - 步骤数据
@@ -1211,7 +1344,7 @@ function _updateStepStatus(stepDiv, step) {
     // 更新图标
     const iconEl = stepDiv.querySelector('.step-icon');
     if (iconEl) {
-        iconEl.textContent = _getStatusIcon(step.status);
+        iconEl.textContent = CONSTANTS.STATUS_ICONS[step.status] || '•';
     }
 
     // 更新标题
@@ -1220,86 +1353,15 @@ function _updateStepStatus(stepDiv, step) {
         titleEl.textContent = _getStepDisplayName(step);
     }
 
-    // 更新或添加工具参数
+    // 更新工具参数、结果、错误
     if (step.tool_arguments) {
-        let argsDetails = stepDiv.querySelector('details[data-type="tool-arguments"]');
-        if (!argsDetails) {
-            const stepHeader = stepDiv.querySelector('.step-header');
-            argsDetails = document.createElement('details');
-            argsDetails.className = 'step-details';
-            argsDetails.setAttribute('data-type', 'tool-arguments');
-            argsDetails.open = true;
-
-            const summary = document.createElement('summary');
-            summary.textContent = '🔧 工具参数';
-            argsDetails.appendChild(summary);
-
-            const pre = document.createElement('pre');
-            argsDetails.appendChild(pre);
-
-            if (stepHeader) {
-                stepHeader.after(argsDetails);
-            } else {
-                stepDiv.appendChild(argsDetails);
-            }
-        }
-        const pre = argsDetails.querySelector('pre');
-        if (pre) {
-            const args = typeof step.tool_arguments === 'string'
-                ? JSON.parse(step.tool_arguments)
-                : step.tool_arguments;
-            pre.textContent = JSON.stringify(args, null, 2);
-        }
+        _updateToolArguments(stepDiv, step.tool_arguments);
     }
-
-    // 更新或添加工具结果
     if (step.tool_result) {
-        let resultDetails = stepDiv.querySelector('details[data-type="tool-result"]');
-        if (!resultDetails) {
-            const stepHeader = stepDiv.querySelector('.step-header');
-            resultDetails = document.createElement('details');
-            resultDetails.className = 'step-details';
-            resultDetails.setAttribute('data-type', 'tool-result');
-            resultDetails.open = true;
-
-            const summary = document.createElement('summary');
-            summary.textContent = '✓ 执行结果';
-            resultDetails.appendChild(summary);
-
-            const pre = document.createElement('pre');
-            resultDetails.appendChild(pre);
-
-            if (stepHeader) {
-                stepHeader.after(resultDetails);
-            } else {
-                stepDiv.appendChild(resultDetails);
-            }
-        }
-        const pre = resultDetails.querySelector('pre');
-        if (pre) {
-            pre.textContent = step.tool_result.substring(0, 500) +
-                (step.tool_result.length > 500 ? '...' : '');
-        }
+        _updateToolResult(stepDiv, step.tool_result);
     }
-
-    // 更新或添加工具错误
     if (step.tool_error) {
-        let errorEl = stepDiv.querySelector('.step-error');
-        if (!errorEl) {
-            errorEl = document.createElement('div');
-            errorEl.className = 'step-error';
-            const stepHeader = stepDiv.querySelector('.step-header');
-            if (stepHeader) {
-                stepHeader.after(errorEl);
-            } else {
-                stepDiv.appendChild(errorEl);
-            }
-        }
-        errorEl.textContent = '';
-        const strong = document.createElement('strong');
-        strong.textContent = '❌ 错误:';
-        errorEl.appendChild(strong);
-        errorEl.appendChild(document.createTextNode(' ' + step.tool_error));
+        _updateToolError(stepDiv, step.tool_error);
     }
 }
 
@@ -1307,12 +1369,7 @@ function _updateStepStatus(stepDiv, step) {
  * 获取 todo 状态图标
  */
 function _getTodoIcon(status) {
-    const icons = {
-        'pending': '⏳',
-        'in_progress': '🔄',
-        'completed': '✅'
-    };
-    return icons[status] || '•';
+    return CONSTANTS.TODO_ICONS[status] || '•';
 }
 
 /**
