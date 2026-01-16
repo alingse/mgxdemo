@@ -1272,28 +1272,94 @@ body {
     width: 75%;
     display: flex;
     flex-direction: column;
-    background: #1a1a1a;
+    background: #fafafa;
+    position: relative;
+}
+
+/* 预览区域顶部添加微妙阴影，与上方内容区分 */
+.preview-area::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+        to right,
+        transparent,
+        var(--border) 10%,
+        var(--border) 90%,
+        transparent
+    );
+    z-index: 1;
 }
 
 .preview-header {
-    padding: 12px 20px;
-    background: #1e1e1e;
+    padding: 14px 20px;
+    background: linear-gradient(to bottom, #ffffff 0%, #fafafa 100%);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    box-shadow: 0 1px 0 var(--border-light);
+}
+
+/* 添加微妙的顶部高光 */
+.preview-header::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 20px;
+    right: 20px;
+    height: 1px;
+    background: linear-gradient(
+        to right,
+        transparent,
+        rgba(59, 130, 246, 0.15),
+        rgba(139, 92, 246, 0.1),
+        transparent
+    );
 }
 
 .preview-header h2 {
-    font-size: 14px;
-    color: #e5e5e5;
+    font-size: 13px;
+    color: var(--text-secondary);
     font-weight: 600;
-    letter-spacing: -0.01em;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 添加一个彩色指示点 */
+.preview-header h2::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
 }
 
 .preview-container {
     flex: 1;
     position: relative;
+    background: #f5f5f5;
+}
+
+/* 添加网格背景纹理 */
+.preview-container::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+    background-size: 20px 20px;
+    opacity: 0.5;
+    pointer-events: none;
 }
 
 .preview-frame {
@@ -1301,6 +1367,7 @@ body {
     height: 100%;
     border: none;
     background: white;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
 }
 
 /* ========================================
@@ -1525,21 +1592,65 @@ body {
 
     /* 移动端预览区域字体调整 */
     .preview-header {
-        padding: 10px 16px;
+        padding: 10px 14px;
     }
 
     .preview-header h2 {
-        font-size: 12px;
+        font-size: 11px;
+        gap: 6px;
+    }
+
+    .preview-header h2::before {
+        width: 5px;
+        height: 5px;
+    }
+
+    .preview-actions {
+        gap: 3px;
     }
 
     .preview-actions .btn-small {
-        font-size: 11px;
-        padding: 5px 10px;
+        font-size: 8px;
+        padding: 4px 7px;
+        border-radius: 4px;
+    }
+
+    .preview-actions .btn-icon-text {
+        gap: 2px;
     }
 
     .preview-actions .btn-icon-text svg {
-        width: 14px;
-        height: 14px;
+        width: 12px;
+        height: 12px;
+        stroke-width: 2.5;
+    }
+
+    /* 移动端按钮样式简化 - 更小的阴影和位移 */
+    .preview-header .btn:hover {
+        transform: none;
+    }
+
+    .preview-header #experienceBtn:hover,
+    .preview-header #shareBtn:hover,
+    .preview-header #setPublicBtn:hover,
+    .preview-header #refreshPreviewBtn:hover {
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    /* 移动端禁用刷新按钮的旋转动画 */
+    .preview-header #refreshPreviewBtn:hover svg {
+        transform: none;
+    }
+
+    .preview-header #refreshPreviewBtn:active svg {
+        transform: none;
+    }
+
+    /* 移动端禁用其他图标动画 */
+    .preview-header #experienceBtn:hover svg,
+    .preview-header #shareBtn:hover svg,
+    .preview-header #setPublicBtn:hover svg {
+        transform: none;
     }
 
     /* Header 压缩 */
@@ -2567,15 +2678,158 @@ details[open] summary {
     align-items: center;
 }
 
-/* Button with icon and text */
-.btn-icon-text {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
+/* ========================================
+   PREVIEW TOOLBAR BUTTONS - 精致风格
+   ======================================== */
+
+/* 通用按钮基础样式 */
+.preview-header .btn {
+    position: relative;
+    overflow: hidden;
+    padding: 7px 13px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 7px;
+    transition: all var(--duration-normal) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.btn-icon-text svg {
+/* 按钮光泽效果 */
+.preview-header .btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.15),
+        transparent
+    );
+    transition: left 0.5s ease;
+}
+
+.preview-header .btn:hover::before {
+    left: 100%;
+}
+
+/* --- 体验按钮 - 中性风格 --- */
+.preview-header #experienceBtn {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.preview-header #experienceBtn:hover {
+    background: rgba(255, 255, 255, 1);
+    border-color: var(--border-dark);
+    color: var(--text);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+}
+
+.preview-header #experienceBtn svg {
+    transition: transform var(--duration-fast) ease;
+}
+
+.preview-header #experienceBtn:hover svg {
+    transform: translateX(1px) translateY(-1px);
+}
+
+/* --- 分享按钮 - 中性风格 --- */
+.preview-header #shareBtn {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+}
+
+.preview-header #shareBtn:hover {
+    background: rgba(255, 255, 255, 1);
+    border-color: var(--border-dark);
+    color: var(--text);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+}
+
+.preview-header #shareBtn svg {
+    transition: transform var(--duration-normal) ease;
+}
+
+.preview-header #shareBtn:hover svg {
+    transform: scale(1.05);
+}
+
+/* --- 设置公开按钮 - 中性风格 --- */
+.preview-header #setPublicBtn {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+}
+
+.preview-header #setPublicBtn:hover {
+    background: rgba(255, 255, 255, 1);
+    border-color: var(--border-dark);
+    color: var(--text);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+}
+
+.preview-header #setPublicBtn svg {
+    transition: transform var(--duration-normal) ease;
+}
+
+.preview-header #setPublicBtn:hover svg {
+    transform: scale(1.05);
+}
+
+/* --- 刷新按钮 - 中性风格 --- */
+.preview-header #refreshPreviewBtn {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+}
+
+.preview-header #refreshPreviewBtn:hover {
+    background: rgba(255, 255, 255, 1);
+    border-color: var(--border-dark);
+    color: var(--text);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+}
+
+.preview-header #refreshPreviewBtn svg {
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.preview-header #refreshPreviewBtn:hover svg {
+    transform: rotate(90deg);
+}
+
+.preview-header #refreshPreviewBtn:active svg {
+    transform: rotate(180deg);
+}
+
+/* --- 按钮文字和图标通用样式 --- */
+.preview-header .btn span {
+    position: relative;
+    z-index: 1;
+}
+
+.preview-header .btn svg {
     flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    stroke-width: 2;
+    position: relative;
+    z-index: 1;
+}
+
+/* 按钮组间距调整 */
+.preview-header .btn-icon-text {
+    gap: 5px;
 }
 
 /* Read-only banner */
