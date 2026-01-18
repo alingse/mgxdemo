@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>使用指南 - Aeio Dev Agent</title>
+    <link rel="icon" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="info-body">
+    <!-- Header -->
+    <header class="info-header">
+        <a href="/" class="info-logo">Aeio Dev Agent</a>
+        <nav class="info-nav">
+            <a href="/about">关于</a>
+            <a href="/contact">联系</a>
+            <a href="/terms">条款</a>
+            <a href="/privacy">隐私</a>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="info-container">
+        <div class="info-content">
+            <h1>使用指南</h1>
+
+            <p>本指南详细介绍 Aeio Dev Agent 的各项功能和最佳实践，帮助您更高效地使用 AI 构建应用。</p>
+
+            <h2>1. 会话管理</h2>
+            <p>会话是组织开发项目的基本单位。每个会话都有独立的代码环境和文件系统。</p>
+
+            <h3>创建会话</h3>
+            <ul>
+                <li>点击左侧边栏的"新建会话"按钮</li>
+                <li>输入会话标题（如"电商首页"、"个人博客"）</li>
+                <li>系统自动创建沙箱环境，包含默认的 index.html、style.css 和 script.js 文件</li>
+            </ul>
+
+            <h3>管理会话</h3>
+            <ul>
+                <li><strong>重命名：</strong>点击会话标题旁的编辑图标修改名称</li>
+                <li><strong>删除：</strong>点击删除图标移除不需要的会话（不可恢复）</li>
+                <li><strong>切换：</strong>点击侧边栏中的会话快速切换</li>
+                <li><strong>搜索：</strong>使用搜索框快速找到特定会话</li>
+            </ul>
+
+            <h2>2. AI 交互技巧</h2>
+
+            <h3>编写有效的提示词</h3>
+            <p>好的提示词能显著提高代码质量和准确性：</p>
+            <ul style="background: var(--bg-secondary); padding: 16px 20px; border-radius: 8px; list-style-position: inside;">
+                <li><strong>明确目标：</strong>"创建一个响应式登录表单，包含用户名、密码输入框和登录按钮"</li>
+                <li><strong>指定样式：</strong>"使用蓝色主题，添加圆角边框和悬停效果"</li>
+                <li><strong>描述布局：</strong>"左侧显示产品图片，右侧显示产品信息和购买按钮"</li>
+                <li><strong>要求响应式：</strong>"确保在移动设备上也能正常显示"</li>
+            </ul>
+
+            <h3>迭代优化</h3>
+            <p>如果初次生成的代码不完全符合预期，可以继续对话：</p>
+            <ul>
+                <li>"将标题改为更大的字体"</li>
+                <li>"添加一个阴影效果"</li>
+                <li>"把按钮改为圆角样式"</li>
+                <li>"调整布局，让图片在上方"</li>
+            </ul>
+
+            <h3>触发代码修改</h3>
+            <p>使用以下关键词可以触发 AI 修改文件：</p>
+            <ul>
+                <li>"创建"、"做一个"、"生成" - 创建新组件或页面</li>
+                <li>"修改"、"更改"、"调整" - 修改现有代码</li>
+                <li>"添加"、"增加" - 添加新元素</li>
+                <li>"删除"、"移除" - 删除元素</li>
+            </ul>
+
+            <h2>3. 沙箱文件操作</h2>
+
+            <h3>默认文件</h3>
+            <p>每个新会话都会创建三个默认文件：</p>
+            <ul>
+                <li><strong>index.html</strong> - 主 HTML 文件</li>
+                <li><strong>style.css</strong> - 样式表文件</li>
+                <li><strong>script.js</strong> - JavaScript 脚本文件</li>
+            </ul>
+
+            <h3>文件管理</h3>
+            <ul>
+                <li><strong>查看文件：</strong>点击文件名查看内容</li>
+                <li><strong>编辑文件：</strong>直接在编辑器中修改代码</li>
+                <li><strong>创建文件：</strong>通过 AI 提示词创建新文件</li>
+                <li><strong>删除文件：</strong>使用文件管理器删除不需要的文件</li>
+            </ul>
+
+            <h3>文件限制</h3>
+            <ul>
+                <li>单个会话最大 100MB</li>
+                <li>单个文件最大 1MB</li>
+                <li>支持 HTML、CSS、JavaScript、JSON 等文本格式</li>
+            </ul>
+
+            <h2>4. TODO 列表功能</h2>
+            <p>AI 可以创建和管理任务列表，帮助您跟踪开发进度：</p>
+            <ul>
+                <li>当您请求复杂功能时，AI 会自动创建 TODO 列表</li>
+                <li>完成后任务会自动标记为完成</li>
+                <li>您可以在侧边栏查看当前会话的所有任务</li>
+            </ul>
+
+            <h2>5. 公开分享功能</h2>
+            <p>将您的会话分享给他人：</p>
+            <ul>
+                <li>点击"分享"按钮生成公开链接</li>
+                <li>任何人都可以通过链接查看预览</li>
+                <li>分享是只读的，他人无法修改您的代码</li>
+                <li>您可以随时关闭分享功能</li>
+            </ul>
+
+            <h2>6. 高级功能</h2>
+
+            <h3>工具调用</h3>
+            <p>AI 可以使用工具直接操作文件系统：</p>
+            <ul>
+                <li><strong>读取文件：</strong>查看现有文件内容</li>
+                <li><strong>写入文件：</strong>创建或更新文件</li>
+                <li><strong>删除文件：</strong>移除不需要的文件</li>
+                <li><strong>列出文件：</strong>查看沙箱中的所有文件</li>
+            </ul>
+
+            <h3>实时预览</h3>
+            <ul>
+                <li>代码修改后自动刷新预览</li>
+                <li>支持移动端预览切换</li>
+                <li>独立全屏预览模式</li>
+                <li>预览页面可独立分享</li>
+            </ul>
+
+            <h2>7. 最佳实践</h2>
+
+            <div class="info-features">
+                <div class="info-feature-card">
+                    <div class="info-feature-icon">📝</div>
+                    <div class="info-feature-title">详细描述</div>
+                    <div class="info-feature-desc">提供尽可能详细的需求描述，包括样式、布局、交互等细节。</div>
+                </div>
+
+                <div class="info-feature-card">
+                    <div class="info-feature-icon">🎨</div>
+                    <div class="info-feature-title">分步实现</div>
+                    <div class="info-feature-desc">将复杂功能分解为多个小步骤，逐步实现并验证。</div>
+                </div>
+
+                <div class="info-feature-card">
+                    <div class="info-feature-icon">🔍</div>
+                    <div class="info-feature-title">检查代码</div>
+                    <div class="info-feature-desc">定期检查生成的代码，确保符合预期和安全标准。</div>
+                </div>
+
+                <div class="info-feature-card">
+                    <div class="info-feature-icon">📚</div>
+                    <div class="info-feature-title">学习基础</div>
+                    <div class="info-feature-desc">了解 HTML/CSS/JS 基础有助于更好地与 AI 沟通。</div>
+                </div>
+            </div>
+
+            <h2>8. 常见使用场景</h2>
+
+            <h3>快速原型</h3>
+            <p>在几分钟内创建产品原型：</p>
+            <ul>
+                <li>落地页</li>
+                <li>产品展示页</li>
+                <li>表单页面</li>
+                <li>管理后台界面</li>
+            </ul>
+
+            <h3>学习编程</h3>
+            <p>通过 AI 生成的代码学习 Web 开发：</p>
+            <ul>
+                <li>查看 AI 如何实现特定功能</li>
+                <li>理解 HTML/CSS/JS 的实际应用</li>
+                <li>通过修改提示词学习不同的实现方式</li>
+            </ul>
+
+            <h3>快速迭代</h3>
+            <p>在产品开发过程中快速验证想法：</p>
+            <ul>
+                <li>测试不同的 UI 设计</li>
+                <li>验证交互流程</li>
+                <li>演示概念给团队或客户</li>
+            </ul>
+
+            <h2>9. 故障排查</h2>
+
+            <h3>预览不显示</h3>
+            <ul>
+                <li>检查是否有语法错误</li>
+                <li>确认 index.html 文件存在</li>
+                <li>尝试刷新预览页面</li>
+            </ul>
+
+            <h3>样式未生效</h3>
+            <ul>
+                <li>确认 CSS 文件已正确链接</li>
+                <li>检查选择器是否正确</li>
+                <li>验证 CSS 文件是否存在语法错误</li>
+            </ul>
+
+            <h3>AI 未按预期工作</h3>
+            <ul>
+                <li>重新描述需求，使用更具体的语言</li>
+                <li>分步骤实现复杂功能</li>
+                <li>提供示例或参考链接</li>
+            </ul>
+
+            <h2>10. 获取帮助</h2>
+            <p>如果您遇到问题：</p>
+            <ul>
+                <li>查阅 <a href="/docs/faq" style="color: var(--primary-color); font-weight: 500;">常见问题</a></li>
+                <li>查看 <a href="/docs/api" style="color: var(--primary-color); font-weight: 500;">API 文档</a></li>
+                <li>通过 <a href="/contact" style="color: var(--primary-color); font-weight: 500;">联系方式</a> 与我们联系</li>
+            </ul>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="landing-footer" style="margin-top: 120px;">
+        <div class="footer-container">
+            <div class="footer-main">
+                <div class="footer-brand">
+                    <div class="footer-logo">Aeio Dev Agent</div>
+                    <p class="footer-tagline">用自然语言构建未来的应用</p>
+                </div>
+
+                <nav class="footer-nav">
+                    <h3 class="footer-nav-title">文档</h3>
+                    <ul class="footer-nav-list">
+                        <li><a href="/docs/getting-started" class="footer-link">快速入门</a></li>
+                        <li><a href="/docs/user-guide" class="footer-link">使用指南</a></li>
+                        <li><a href="/docs/api" class="footer-link">API 文档</a></li>
+                        <li><a href="/docs/faq" class="footer-link">常见问题</a></li>
+                    </ul>
+                </nav>
+
+                <nav class="footer-nav">
+                    <h3 class="footer-nav-title">关于</h3>
+                    <ul class="footer-nav-list">
+                        <li><a href="/about" class="footer-link">关于我们</a></li>
+                        <li><a href="/contact" class="footer-link">联系方式</a></li>
+                        <li><a href="/privacy" class="footer-link">隐私政策</a></li>
+                        <li><a href="/terms" class="footer-link">服务条款</a></li>
+                        <li><a href="https://github.com/alingse/mgxdemo" class="footer-link" target="_blank" rel="noopener noreferrer">
+                            <span style="display: inline-flex; align-items: center; gap: 4px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                                </svg>
+                                GitHub
+                            </span>
+                        </a></li>
+                    </ul>
+                </nav>
+
+            </div>
+
+            <div class="footer-divider"></div>
+
+            <div class="footer-bottom">
+                <p class="footer-copyright">&copy; 2024 Aeio Dev Agent. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

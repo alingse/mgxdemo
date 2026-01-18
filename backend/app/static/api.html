@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API 文档 - Aeio Dev Agent</title>
+    <link rel="icon" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .api-section {
+            margin-bottom: 40px;
+        }
+        .api-endpoint {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--primary-color);
+        }
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        .api-get { background: #e0f2fe; color: #0369a1; }
+        .api-post { background: #dcfce7; color: #15803d; }
+        .api-delete { background: #fee2e2; color: #dc2626; }
+        .api-path {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+        .api-description {
+            margin-top: 12px;
+            color: var(--text-secondary);
+        }
+        .code-block {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 16px;
+            margin: 12px 0;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .code-block code {
+            color: var(--text-primary);
+        }
+        .param-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            font-size: 14px;
+        }
+        .param-table th {
+            text-align: left;
+            padding: 10px 12px;
+            background: var(--bg-secondary);
+            border-bottom: 2px solid var(--border-color);
+            font-weight: 600;
+        }
+        .param-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .param-table tr:last-child td {
+            border-bottom: none;
+        }
+        .param-name {
+            font-family: 'Monaco', 'Menlo', monospace;
+            color: var(--primary-color);
+        }
+        .param-type {
+            font-family: 'Monaco', 'Menlo', monospace;
+            color: var(--text-tertiary);
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body class="info-body">
+    <!-- Header -->
+    <header class="info-header">
+        <a href="/" class="info-logo">Aeio Dev Agent</a>
+        <nav class="info-nav">
+            <a href="/about">关于</a>
+            <a href="/contact">联系</a>
+            <a href="/terms">条款</a>
+            <a href="/privacy">隐私</a>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="info-container">
+        <div class="info-content">
+            <h1>API 文档</h1>
+
+            <p>Aeio Dev Agent 提供完整的 RESTful API，支持通过编程方式管理会话、消息和沙箱文件。所有 API 端点都需要 JWT 认证。</p>
+
+            <h2>认证方式</h2>
+            <p>除了注册和登录端点外，所有 API 请求都需要在 HTTP Header 中包含 JWT 令牌：</p>
+            <div class="code-block"><code>Authorization: Bearer &lt;your_access_token&gt;</code></div>
+
+            <h2>基础 URL</h2>
+            <div class="code-block"><code>https://your-domain.com/api</code></div>
+
+            <!-- 认证相关 -->
+            <div class="api-section">
+                <h2>1. 认证相关</h2>
+
+                <div class="api-endpoint">
+                    <span class="api-method api-post">POST</span>
+                    <span class="api-path">/auth/register</span>
+                    <div class="api-description">注册新用户账号</div>
+
+                    <table class="param-table">
+                        <tr>
+                            <th>参数</th>
+                            <th>类型</th>
+                            <th>说明</th>
+                        </tr>
+                        <tr>
+                            <td><span class="param-name">username</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>用户名（3-50 字符）</td>
+                        </tr>
+                        <tr>
+                            <td><span class="param-name">email</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>邮箱地址</td>
+                        </tr>
+                        <tr>
+                            <td><span class="param-name">password</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>密码（至少 6 字符）</td>
+                        </tr>
+                    </table>
+
+                    <div class="code-block"><code>{
+  "username": "johndoe",
+  "email": "john@example.com",
+  "password": "securepass123"
+}</code></div>
+
+                    <p><strong>响应：</strong></p>
+                    <div class="code-block"><code>{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "bearer",
+  "user": {
+    "id": 1,
+    "username": "johndoe",
+    "email": "john@example.com"
+  }
+}</code></div>
+                </div>
+
+                <div class="api-endpoint">
+                    <span class="api-method api-post">POST</span>
+                    <span class="api-path">/auth/login</span>
+                    <div class="api-description">用户登录，获取访问令牌</div>
+
+                    <table class="param-table">
+                        <tr>
+                            <th>参数</th>
+                            <th>类型</th>
+                            <th>说明</th>
+                        </tr>
+                        <tr>
+                            <td><span class="param-name">username</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>用户名或邮箱</td>
+                        </tr>
+                        <tr>
+                            <td><span class="param-name">password</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>密码</td>
+                        </tr>
+                    </table>
+
+                    <p><strong>响应：</strong></p>
+                    <div class="code-block"><code>{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "bearer",
+  "user": {
+    "id": 1,
+    "username": "johndoe",
+    "email": "john@example.com"
+  }
+}</code></div>
+                </div>
+
+                <div class="api-endpoint">
+                    <span class="api-method api-get">GET</span>
+                    <span class="api-path">/auth/me</span>
+                    <div class="api-description">获取当前用户信息（需要认证）</div>
+
+                    <p><strong>响应：</strong></p>
+                    <div class="code-block"><code>{
+  "id": 1,
+  "username": "johndoe",
+  "email": "john@example.com",
+  "created_at": "2024-01-15T10:30:00Z"
+}</code></div>
+                </div>
+            </div>
+
+            <!-- 会话管理 -->
+            <div class="api-section">
+                <h2>2. 会话管理</h2>
+
+                <div class="api-endpoint">
+                    <span class="api-method api-get">GET</span>
+                    <span class="api-path">/sessions</span>
+                    <div class="api-description">获取当前用户的所有会话列表</div>
+
+                    <p><strong>响应：</strong></p>
+                    <div class="code-block"><code>[
+  {
+    "id": "12db3c516aae14608a5013905b8c189f",
+    "title": "个人网站",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T11:00:00Z"
+  },
+  {
+    "id": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+    "title": "登录页面",
+    "created_at": "2024-01-14T08:00:00Z",
+    "updated_at": "2024-01-14T09:30:00Z"
+  }
+]</code></div>
+                </div>
+
+                <div class="api-endpoint">
+                    <span class="api-method api-post">POST</span>
+                    <span class="api-path">/sessions</span>
+                    <div class="api-description">创建新会话</div>
+
+                    <table class="param-table">
+                        <tr>
+                            <th>参数</th>
+                            <th>类型</th>
+                            <th>说明</th>
+                        </tr>
+                        <tr>
+                            <td><span class="param-name">title</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>会话标题</td>
+                        </tr>
+                    </table>
+
+                    <p><strong>响应：</strong></p>
+                    <div class="code-block"><code>{
+  "id": "12db3c516aae14608a5013905b8c189f",
+  "title": "新项目",
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T10:30:00Z"
+}</code></div>
+                </div>
+
+                <div class="api-endpoint">
+                    <span class="api-method api-get">GET</span>
+                    <span class="api-path">/sessions/{id}</span>
+                    <div class="api-description">获取指定会话的详细信息</div>
+
+                    <p><strong>路径参数：</strong></p>
+                    <ul>
+                        <li><code>id</code> - 会话 ID（UUID hex 字符串）</li>
+                    </ul>
+
+                    <p><strong>响应：</strong></p>
+                    <div class="code-block"><code>{
+  "id": "12db3c516aae14608a5013905b8c189f",
+  "title": "个人网站",
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T11:00:00Z"
+}</code></div>
+                </div>
+
+                <div class="api-endpoint">
+                    <span class="api-method api-delete">DELETE</span>
+                    <span class="api-path">/sessions/{id}</span>
+                    <div class="api-description">删除指定会话及其所有数据</div>
+
+                    <p><strong>响应：</strong></p>
+                    <div class="code-block"><code>{"message": "Session deleted successfully"}</code></div>
+                </div>
+            </div>
+
+            <!-- 消息相关 -->
+            <div class="api-section">
+                <h2>3. 消息相关</h2>
+
+                <div class="api-endpoint">
+                    <span class="api-method api-get">GET</span>
+                    <span class="api-path">/sessions/{id}/messages</span>
+                    <div class="api-description">获取会话的消息历史</div>
+
+                    <p><strong>响应：</strong></p>
+                    <div class="code-block"><code>[
+  {
+    "id": 1,
+    "session_id": "12db3c516aae14608a5013905b8c189f",
+    "content": "创建一个登录表单",
+    "role": "user",
+    "created_at": "2024-01-15T10:30:00Z"
+  },
+  {
+    "id": 2,
+    "session_id": "12db3c516aae14608a5013905b8c189f",
+    "content": "好的，我来为您创建...",
+    "role": "assistant",
+    "created_at": "2024-01-15T10:30:05Z"
+  }
+]</code></div>
+                </div>
+
+                <div class="api-endpoint">
+                    <span class="api-method api-post">POST</span>
+                    <span class="api-path">/sessions/{id}/messages</span>
+                    <div class="api-description">发送新消息并获取 AI 响应</div>
+
+                    <table class="param-table">
+                        <tr>
+                            <th>参数</th>
+                            <th>类型</th>
+                            <th>说明</th>
+                        </tr>
+                        <tr>
+                            <td><span class="param-name">content</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>消息内容</td>
+                        </tr>
+                        <tr>
+                            <td><span class="param-name">stream</span></td>
+                            <td><span class="param-type">boolean</span></td>
+                            <td>是否使用流式响应（可选，默认 false）</td>
+                        </tr>
+                    </table>
+
+                    <p><strong>响应：</strong></p>
+                    <div class="code-block"><code>{
+  "id": 3,
+  "session_id": "12db3c516aae14608a5013905b8c189f",
+  "content": "我已经为您创建了登录表单...",
+  "role": "assistant",
+  "created_at": "2024-01-15T10:31:00Z"
+}</code></div>
+                </div>
+
+                <div class="api-endpoint">
+                    <span class="api-method api-get">GET</span>
+                    <span class="api-path">/sessions/{id}/messages/latest/execution-steps</span>
+                    <div class="api-description">获取最新消息的执行步骤（实时进度）</div>
+
+                    <p><strong>响应：</strong></p>
+                    <div class="code-block"><code>[
+  {
+    "id": 1,
+    "session_id": "12db3c516aae14608a5013905b8c189f",
+    "message_id": 3,
+    "iteration": 1,
+    "status": "completed",
+    "tool_name": "write_file",
+    "tool_arguments": {"filename": "index.html"},
+    "progress": 100
+  }
+]</code></div>
+                </div>
+            </div>
+
+            <!-- 沙箱文件 -->
+            <div class="api-section">
+                <h2>4. 沙箱文件</h2>
+
+                <div class="api-endpoint">
+                    <span class="api-method api-get">GET</span>
+                    <span class="api-path">/sessions/{id}/sandbox/files</span>
+                    <div class="api-description">列出沙箱中的所有文件</div>
+
+                    <p><strong>响应：</strong></p>
+                    <div class="code-block"><code>{
+  "files": [
+    {"name": "index.html", "size": 1234},
+    {"name": "style.css", "size": 567},
+    {"name": "script.js", "size": 890}
+  ],
+  "total_size": 2691
+}</code></div>
+                </div>
+
+                <div class="api-endpoint">
+                    <span class="api-method api-get">GET</span>
+                    <span class="api-path">/sessions/{id}/sandbox/files/{filename}</span>
+                    <div class="api-description">读取指定文件的内容</div>
+
+                    <p><strong>响应：</strong></p>
+                    <div class="code-block"><code>{
+  "filename": "index.html",
+  "content": "&lt;!DOCTYPE html&gt;\n&lt;html&gt;...",
+  "size": 1234
+}</code></div>
+                </div>
+
+                <div class="api-endpoint">
+                    <span class="api-method api-post">POST</span>
+                    <span class="api-path">/sessions/{id}/sandbox/files/{filename}</span>
+                    <div class="api-description">创建或覆盖文件</div>
+
+                    <table class="param-table">
+                        <tr>
+                            <th>参数</th>
+                            <th>类型</th>
+                            <th>说明</th>
+                        </tr>
+                        <tr>
+                            <td><span class="param-name">content</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>文件内容</td>
+                        </tr>
+                    </table>
+
+                    <p><strong>响应：</strong></p>
+                    <div class="code-block"><code>{
+  "filename": "index.html",
+  "size": 1234,
+  "message": "File saved successfully"
+}</code></div>
+                </div>
+
+                <div class="api-endpoint">
+                    <span class="api-method api-delete">DELETE</span>
+                    <span class="api-path">/sessions/{id}/sandbox/files/{filename}</span>
+                    <div class="api-description">删除指定文件</div>
+
+                    <p><strong>响应：</strong></p>
+                    <div class="code-block"><code>{"message": "File deleted successfully"}</code></div>
+                </div>
+
+                <div class="api-endpoint">
+                    <span class="api-method api-get">GET</span>
+                    <span class="api-path">/sessions/{id}/sandbox/preview</span>
+                    <div class="api-description">获取沙箱预览（返回 HTML）</div>
+
+                    <p><strong>响应：</strong>HTML Content（text/html）</p>
+                </div>
+
+                <div class="api-endpoint">
+                    <span class="api-method api-get">GET</span>
+                    <span class="api-path">/sessions/{id}/sandbox/static/{filename}</span>
+                    <div class="api-description">获取沙箱中的静态资源（CSS、JS、图片等）</div>
+
+                    <p><strong>响应：</strong>文件内容（根据文件类型返回相应的 Content-Type）</p>
+                </div>
+            </div>
+
+            <!-- 错误响应 -->
+            <div class="api-section">
+                <h2>5. 错误响应</h2>
+
+                <p>所有 API 端点在发生错误时返回统一的错误格式：</p>
+                <div class="code-block"><code>{
+  "detail": "Error message description"
+}</code></div>
+
+                <h3>HTTP 状态码</h3>
+                <ul>
+                    <li><strong>200</strong> - 请求成功</li>
+                    <li><strong>201</strong> - 创建成功</li>
+                    <li><strong>400</strong> - 请求参数错误</li>
+                    <li><strong>401</strong> - 未认证或令牌无效</li>
+                    <li><strong>403</strong> - 无权限访问</li>
+                    <li><strong>404</strong> - 资源不存在</li>
+                    <li><strong>422</strong> - 请求体验证失败</li>
+                    <li><strong>500</strong> - 服务器内部错误</li>
+                </ul>
+            </div>
+
+            <!-- 限制说明 -->
+            <div class="api-section">
+                <h2>6. 限制说明</h2>
+
+                <ul>
+                    <li><strong>令牌有效期：</strong>30 分钟</li>
+                    <li><strong>沙箱大小限制：</strong>每个会话最大 100MB</li>
+                    <li><strong>单个文件大小：</strong>最大 1MB</li>
+                    <li><strong>请求速率限制：</strong>根据用户等级动态调整</li>
+                </ul>
+            </div>
+
+            <p style="margin-top: 40px;">需要更多帮助？请查看 <a href="/docs/faq" style="color: var(--primary-color); font-weight: 500;">常见问题</a> 或 <a href="/contact" style="color: var(--primary-color); font-weight: 500;">联系我们</a>。</p>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="landing-footer" style="margin-top: 120px;">
+        <div class="footer-container">
+            <div class="footer-main">
+                <div class="footer-brand">
+                    <div class="footer-logo">Aeio Dev Agent</div>
+                    <p class="footer-tagline">用自然语言构建未来的应用</p>
+                </div>
+
+                <nav class="footer-nav">
+                    <h3 class="footer-nav-title">文档</h3>
+                    <ul class="footer-nav-list">
+                        <li><a href="/docs/getting-started" class="footer-link">快速入门</a></li>
+                        <li><a href="/docs/user-guide" class="footer-link">使用指南</a></li>
+                        <li><a href="/docs/api" class="footer-link">API 文档</a></li>
+                        <li><a href="/docs/faq" class="footer-link">常见问题</a></li>
+                    </ul>
+                </nav>
+
+                <nav class="footer-nav">
+                    <h3 class="footer-nav-title">关于</h3>
+                    <ul class="footer-nav-list">
+                        <li><a href="/about" class="footer-link">关于我们</a></li>
+                        <li><a href="/contact" class="footer-link">联系方式</a></li>
+                        <li><a href="/privacy" class="footer-link">隐私政策</a></li>
+                        <li><a href="/terms" class="footer-link">服务条款</a></li>
+                        <li><a href="https://github.com/alingse/mgxdemo" class="footer-link" target="_blank" rel="noopener noreferrer">
+                            <span style="display: inline-flex; align-items: center; gap: 4px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                                </svg>
+                                GitHub
+                            </span>
+                        </a></li>
+                    </ul>
+                </nav>
+
+            </div>
+
+            <div class="footer-divider"></div>
+
+            <div class="footer-bottom">
+                <p class="footer-copyright">&copy; 2024 Aeio Dev Agent. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

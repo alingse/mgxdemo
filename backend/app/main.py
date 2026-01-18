@@ -10,8 +10,6 @@ from app.api import auth, messages, sandbox, sessions
 from app.config import get_settings
 from app.database import init_db
 
-# 导入所有模型以确保 SQLAlchemy 创建表
-
 settings = get_settings()
 
 # Configure logging
@@ -55,13 +53,41 @@ async def startup_event():
     os.makedirs(settings.sandbox_base_dir, exist_ok=True)
 
 
-@app.get("/")
-async def root():
-    """Landing page - public access."""
-    landing_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
-    if os.path.exists(landing_path):
-        return FileResponse(landing_path)
-    return {"error": "Landing page not found"}
+# Static page routes configuration
+STATIC_PAGE_ROUTES = {
+    "/": ("index.html", "Landing page"),
+    "/sign-in": ("login.html", "Login page"),
+    "/register": ("register.html", "Register page"),
+    "/about": ("about.html", "About page"),
+    "/contact": ("contact.html", "Contact page"),
+    "/terms": ("terms.html", "Terms page"),
+    "/privacy": ("privacy.html", "Privacy page"),
+    "/docs/getting-started": ("getting-started.html", "Getting started page"),
+    "/docs/user-guide": ("user-guide.html", "User guide page"),
+    "/docs/api": ("api.html", "API documentation page"),
+    "/docs/faq": ("faq.html", "FAQ page"),
+}
+
+
+def _serve_static_html(filename: str, page_name: str):
+    """Serve a static HTML file from the static directory."""
+    file_path = os.path.join(os.path.dirname(__file__), "static", filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    return {"error": f"{page_name} not found"}
+
+
+def _create_page_handler(filename: str, page_name: str):
+    """Factory function to create a page handler with captured values."""
+    async def page_handler():
+        return _serve_static_html(filename, page_name)
+    return page_handler
+
+
+# Register static page routes dynamically
+for route, (filename, page_name) in STATIC_PAGE_ROUTES.items():
+    handler = _create_page_handler(filename, page_name)
+    app.get(route)(handler)
 
 
 @app.get("/chat/{session_id}")
@@ -71,24 +97,6 @@ async def chat_workspace(session_id: str):
     if os.path.exists(workspace_path):
         return FileResponse(workspace_path)
     return {"error": "Workspace page not found"}
-
-
-@app.get("/sign-in")
-async def sign_in():
-    """Sign in page."""
-    login_path = os.path.join(os.path.dirname(__file__), "static", "login.html")
-    if os.path.exists(login_path):
-        return FileResponse(login_path)
-    return {"error": "Login page not found"}
-
-
-@app.get("/register")
-async def register_page():
-    """Register page."""
-    register_path = os.path.join(os.path.dirname(__file__), "static", "register.html")
-    if os.path.exists(register_path):
-        return FileResponse(register_path)
-    return {"error": "Register page not found"}
 
 
 @app.get("/health")

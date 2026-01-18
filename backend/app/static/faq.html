@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>常见问题 - Aeio Dev Agent</title>
+    <link rel="icon" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .faq-item {
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 24px;
+        }
+        .faq-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        .faq-question {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        .faq-answer {
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+        .faq-category {
+            margin-top: 40px;
+            margin-bottom: 20px;
+        }
+        .faq-category-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary-color);
+        }
+    </style>
+</head>
+<body class="info-body">
+    <!-- Header -->
+    <header class="info-header">
+        <a href="/" class="info-logo">Aeio Dev Agent</a>
+        <nav class="info-nav">
+            <a href="/about">关于</a>
+            <a href="/contact">联系</a>
+            <a href="/terms">条款</a>
+            <a href="/privacy">隐私</a>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="info-container">
+        <div class="info-content">
+            <h1>常见问题</h1>
+
+            <p>以下是用户常见问题的解答，涵盖账户、使用、技术等方面。</p>
+
+            <!-- 账户相关 -->
+            <div class="faq-category">
+                <h2 class="faq-category-title">账户相关</h2>
+
+                <div class="faq-item">
+                    <div class="faq-question">如何注册账号？</div>
+                    <div class="faq-answer">
+                        访问注册页面，填写用户名、邮箱和密码即可完成注册。注册后系统会自动为您创建一个访问令牌，无需邮箱验证。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">忘记密码怎么办？</div>
+                    <div class="faq-answer">
+                        目前暂不支持自助密码重置功能。请通过 <a href="/contact" style="color: var(--primary-color); font-weight: 500;">联系我们</a> 页面联系管理员重置密码。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">如何修改账户信息？</div>
+                    <div class="faq-answer">
+                        目前用户名和邮箱暂不支持自助修改。如需修改，请联系管理员。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">如何删除账户？</div>
+                    <div class="faq-answer">
+                        删除账户会永久移除您的所有数据，包括会话、消息和沙箱文件。如需删除账户，请通过联系方式联系我们，确认后我们会为您处理。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">Aeio Dev Agent 是免费的吗？</div>
+                    <div class="faq-answer">
+                        目前 Aeio Dev Agent 处于测试阶段，完全免费使用。未来可能会根据使用量提供不同的付费计划。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 使用相关 -->
+            <div class="faq-category">
+                <h2 class="faq-category-title">使用相关</h2>
+
+                <div class="faq-item">
+                    <div class="faq-question">如何创建第一个会话？</div>
+                    <div class="faq-answer">
+                        登录后，点击左侧边栏的"新建会话"按钮，输入会话标题即可。系统会自动为您创建一个包含默认文件（index.html、style.css、script.js）的沙箱环境。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">如何让 AI 修改代码？</div>
+                    <div class="faq-answer">
+                        直接在聊天框中描述您想要的修改。使用"创建"、"修改"、"添加"、"删除"等关键词可以触发 AI 的文件修改功能。例如："把标题改成红色"或"添加一个登录按钮"。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">AI 支持哪些编程语言？</div>
+                    <div class="faq-answer">
+                        目前主要支持 Web 前端开发相关的语言和格式，包括 HTML、CSS、JavaScript。您也可以使用 JSON 配置文件等文本格式。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">如何下载生成的代码？</div>
+                    <div class="faq-answer">
+                        您可以通过沙箱文件管理功能查看每个文件的内容，手动复制代码到本地。未来版本将支持一键导出整个项目。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">可以分享我的项目吗？</div>
+                    <div class="faq-answer">
+                        可以。每个会话都有独立的预览链接，您可以将链接分享给他人查看。预览是只读的，他人无法修改您的代码。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">会话数量有限制吗？</div>
+                    <div class="faq-answer">
+                        目前没有会话数量限制，您可以创建任意数量的会话。每个会话独立运行，互不干扰。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 技术相关 -->
+            <div class="faq-category">
+                <h2 class="faq-category-title">技术相关</h2>
+
+                <div class="faq-item">
+                    <div class="faq-question">支持哪些浏览器？</div>
+                    <div class="faq-answer">
+                        支持所有现代浏览器，包括 Chrome、Firefox、Safari、Edge 的最新版本。建议使用 Chrome 或 Edge 以获得最佳体验。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">支持移动设备吗？</div>
+                    <div class="faq-answer">
+                        支持。界面采用响应式设计，可以在手机和平板上正常使用。但推荐在桌面端进行开发，以获得更完整的编辑体验。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">沙箱大小有限制吗？</div>
+                    <div class="faq-answer">
+                        每个会话的沙箱最大为 100MB，单个文件最大为 1MB。这些限制足以支持大多数 Web 项目的开发。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">为什么预览不显示？</div>
+                    <div class="faq-answer">
+                        可能的原因包括：1) index.html 文件不存在或有语法错误；2) 浏览器缓存问题，尝试刷新预览；3) 代码中有不安全的操作被拦截。检查文件内容并刷新预览。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">如何查看和编辑代码？</div>
+                    <div class="faq-answer">
+                        点击沙箱文件列表中的文件名即可查看内容。目前支持只读查看，如需编辑请通过 AI 对话进行修改。
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI 相关 -->
+            <div class="faq-category">
+                <h2 class="faq-category-title">AI 相关</h2>
+
+                <div class="faq-item">
+                    <div class="faq-question">使用的是什么 AI 模型？</div>
+                    <div class="faq-answer">
+                        我们支持多个 AI 提供商，包括 OpenAI GPT 系列和智谱 GLM 系列。系统会根据配置自动选择合适的模型。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">如何写出更好的提示词？</div>
+                    <div class="faq-answer">
+                        提供具体、详细的描述会获得更好的结果。包括：1) 明确要实现的功能；2) 指定样式和布局；3) 描述交互行为；4) 提及响应式需求。参考 <a href="/docs/user-guide" style="color: var(--primary-color); font-weight: 500;">使用指南</a> 中的示例。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">AI 生成的代码准确吗？</div>
+                    <div class="faq-answer">
+                        AI 生成的代码通常是可靠的，但可能存在错误或不符合预期的情况。建议您检查生成的代码，并通过继续对话进行修改和优化。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">我的对话内容会被用于训练 AI 吗？</div>
+                    <div class="faq-answer">
+                        您的对话内容会发送给第三方 AI 提供商进行处理。根据提供商的政策，这些数据可能会被用于改进模型。请勿在对话中分享敏感个人信息。详见 <a href="/privacy" style="color: var(--primary-color); font-weight: 500;">隐私政策</a>。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">AI 响应很慢怎么办？</div>
+                    <div class="faq-answer">
+                        AI 响应时间取决于多个因素，包括网络状况和 AI 提供商的服务负载。如果响应特别慢，请稍后重试或联系管理员。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 高级功能 -->
+            <div class="faq-category">
+                <h2 class="faq-category-title">高级功能</h2>
+
+                <div class="faq-item">
+                    <div class="faq-question">什么是 TODO 列表？</div>
+                    <div class="faq-answer">
+                        当您请求复杂功能时，AI 会自动创建任务列表来跟踪进度。每个任务完成后会自动标记为完成状态，帮助您了解开发进度。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">什么是工具调用？</div>
+                    <div class="faq-answer">
+                        工具调用是 AI 使用特定功能来操作文件系统的方式，包括读取文件、写入文件、删除文件和列出文件。这使得 AI 可以直接修改您的代码。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">如何使用 API？</div>
+                    <div class="faq-answer">
+                        我们提供完整的 RESTful API，支持通过编程方式管理会话、消息和沙箱文件。详见 <a href="/docs/api" style="color: var(--primary-color); font-weight: 500;">API 文档</a>。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">支持批量操作吗？</div>
+                    <div class="faq-answer">
+                        暂不支持批量操作。每个文件操作需要单独进行。未来版本可能会添加批量管理功能。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 安全和隐私 -->
+            <div class="faq-category">
+                <h2 class="faq-category-title">安全和隐私</h2>
+
+                <div class="faq-item">
+                    <div class="faq-question">我的代码安全吗？</div>
+                    <div class="faq-answer">
+                        每个会话在独立的沙箱环境中运行，代码完全隔离。其他用户无法访问您的会话和代码。但请注意，公开分享的预览链接可被任何人访问。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">数据会被备份吗？</div>
+                    <div class="faq-answer">
+                        建议定期导出您的重要代码。虽然我们会尽力保护数据安全，但无法保证在任何情况下都不发生数据丢失。
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">如何举报违规内容？</div>
+                    <div class="faq-answer">
+                        如发现违反服务条款的内容，请通过 <a href="/contact" style="color: var(--primary-color); font-weight: 500;">联系我们</a> 页面举报，我们会及时处理。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 更多帮助 -->
+            <div style="margin-top: 60px; padding: 24px; background: var(--bg-secondary); border-radius: 12px;">
+                <h3 style="margin-top: 0;">没有找到答案？</h3>
+                <p>如果以上解答未能解决您的问题，请：</p>
+                <ul>
+                    <li>查阅 <a href="/docs/getting-started" style="color: var(--primary-color); font-weight: 500;">快速入门</a> 和 <a href="/docs/user-guide" style="color: var(--primary-color); font-weight: 500;">使用指南</a></li>
+                    <li>查看 <a href="/docs/api" style="color: var(--primary-color); font-weight: 500;">API 文档</a> 了解技术细节</li>
+                    <li>通过 <a href="/contact" style="color: var(--primary-color); font-weight: 500;">联系方式</a> 与我们取得联系</li>
+                    <li>访问我们的 <a href="https://github.com/alingse/mgxdemo" style="color: var(--primary-color); font-weight: 500;" target="_blank" rel="noopener noreferrer">GitHub 仓库</a> 提交问题</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="landing-footer" style="margin-top: 120px;">
+        <div class="footer-container">
+            <div class="footer-main">
+                <div class="footer-brand">
+                    <div class="footer-logo">Aeio Dev Agent</div>
+                    <p class="footer-tagline">用自然语言构建未来的应用</p>
+                </div>
+
+                <nav class="footer-nav">
+                    <h3 class="footer-nav-title">文档</h3>
+                    <ul class="footer-nav-list">
+                        <li><a href="/docs/getting-started" class="footer-link">快速入门</a></li>
+                        <li><a href="/docs/user-guide" class="footer-link">使用指南</a></li>
+                        <li><a href="/docs/api" class="footer-link">API 文档</a></li>
+                        <li><a href="/docs/faq" class="footer-link">常见问题</a></li>
+                    </ul>
+                </nav>
+
+                <nav class="footer-nav">
+                    <h3 class="footer-nav-title">关于</h3>
+                    <ul class="footer-nav-list">
+                        <li><a href="/about" class="footer-link">关于我们</a></li>
+                        <li><a href="/contact" class="footer-link">联系方式</a></li>
+                        <li><a href="/privacy" class="footer-link">隐私政策</a></li>
+                        <li><a href="/terms" class="footer-link">服务条款</a></li>
+                        <li><a href="https://github.com/alingse/mgxdemo" class="footer-link" target="_blank" rel="noopener noreferrer">
+                            <span style="display: inline-flex; align-items: center; gap: 4px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                                </svg>
+                                GitHub
+                            </span>
+                        </a></li>
+                    </ul>
+                </nav>
+
+            </div>
+
+            <div class="footer-divider"></div>
+
+            <div class="footer-bottom">
+                <p class="footer-copyright">&copy; 2024 Aeio Dev Agent. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .logo-fill { fill: #0a0a0a; }
+    </style>
+  </defs>
+
+  <!-- Center diamond core -->
+  <polygon points="60,45 75,60 60,75 45,60" class="logo-fill"/>
+
+  <!-- Four main rays (vertical and horizontal) -->
+  <!-- Top ray - long -->
+  <polygon points="57,42 60,10 63,42" class="logo-fill"/>
+  <!-- Bottom ray - long -->
+  <polygon points="57,78 60,110 63,78" class="logo-fill"/>
+  <!-- Left ray - long -->
+  <polygon points="42,57 10,60 42,63" class="logo-fill"/>
+  <!-- Right ray - long -->
+  <polygon points="78,57 110,60 78,63" class="logo-fill"/>
+
+  <!-- Four diagonal rays - medium -->
+  <!-- Top-left -->
+  <polygon points="52,52 28,28 57,49" class="logo-fill"/>
+  <!-- Top-right -->
+  <polygon points="68,52 92,28 63,49" class="logo-fill"/>
+  <!-- Bottom-left -->
+  <polygon points="52,68 28,92 57,71" class="logo-fill"/>
+  <!-- Bottom-right -->
+  <polygon points="68,68 92,92 63,71" class="logo-fill"/>
+
+  <!-- Small diagonal rays - 45 degree offset -->
+  <polygon points="48,54 35,35 53,51" class="logo-fill"/>
+  <polygon points="72,54 85,35 67,51" class="logo-fill"/>
+  <polygon points="48,66 35,85 53,69" class="logo-fill"/>
+  <polygon points="72,66 85,85 67,69" class="logo-fill"/>
+
+  <!-- OUTER DIAMOND CONNECTION FRAME - Key feature of Scheme 4 -->
+  <!-- Connects the four outer vertices: (60,10) -> (110,60) -> (60,110) -> (10,60) -->
+  <polygon points="60,10 110,60 60,110 10,60" fill="none" stroke="#0a0a0a" stroke-width="2"/>
+
+  <!-- Decorative dots at outer diamond vertices -->
+  <circle cx="60" cy="10" r="4" class="logo-fill"/>
+  <circle cx="60" cy="110" r="4" class="logo-fill"/>
+  <circle cx="10" cy="60" r="4" class="logo-fill"/>
+  <circle cx="110" cy="60" r="4" class="logo-fill"/>
+
+  <!-- Smaller dots at diagonal ray ends -->
+  <circle cx="28" cy="28" r="3" class="logo-fill"/>
+  <circle cx="92" cy="28" r="3" class="logo-fill"/>
+  <circle cx="28" cy="92" r="3" class="logo-fill"/>
+  <circle cx="92" cy="92" r="3" class="logo-fill"/>
+
+  <!-- Tiny accent dots along main rays -->
+  <circle cx="60" cy="30" r="2" class="logo-fill"/>
+  <circle cx="60" cy="90" r="2" class="logo-fill"/>
+  <circle cx="30" cy="60" r="2" class="logo-fill"/>
+  <circle cx="90" cy="60" r="2" class="logo-fill"/>
+</svg>

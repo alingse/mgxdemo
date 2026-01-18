@@ -1,0 +1,42 @@
+<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .fav-fill { fill: #0a0a0a; }
+    </style>
+  </defs>
+
+  <!-- Center diamond core -->
+  <polygon points="16,11 21,16 16,21 11,16" class="fav-fill"/>
+
+  <!-- Four main rays (vertical and horizontal) -->
+  <!-- Top ray -->
+  <polygon points="14.5,10 16,2 17.5,10" class="fav-fill"/>
+  <!-- Bottom ray -->
+  <polygon points="14.5,22 16,30 17.5,22" class="fav-fill"/>
+  <!-- Left ray -->
+  <polygon points="10,14.5 2,16 10,17.5" class="fav-fill"/>
+  <!-- Right ray -->
+  <polygon points="22,14.5 30,16 22,17.5" class="fav-fill"/>
+
+  <!-- Four diagonal rays -->
+  <polygon points="12,12 7,7 14.5,14" class="fav-fill"/>
+  <polygon points="20,12 25,7 17.5,14" class="fav-fill"/>
+  <polygon points="12,20 7,25 14.5,18" class="fav-fill"/>
+  <polygon points="20,20 25,25 17.5,18" class="fav-fill"/>
+
+  <!-- OUTER DIAMOND CONNECTION FRAME - Key feature of Scheme 4 -->
+  <!-- Connects the four outer vertices: (16,2) -> (30,16) -> (16,30) -> (2,16) -->
+  <polygon points="16,2 30,16 16,30 2,16" fill="none" stroke="#0a0a0a" stroke-width="1"/>
+
+  <!-- Decorative dots at outer diamond vertices -->
+  <circle cx="16" cy="2" r="1.5" class="fav-fill"/>
+  <circle cx="16" cy="30" r="1.5" class="fav-fill"/>
+  <circle cx="2" cy="16" r="1.5" class="fav-fill"/>
+  <circle cx="30" cy="16" r="1.5" class="fav-fill"/>
+
+  <!-- Smaller dots at diagonal ray ends -->
+  <circle cx="7" cy="7" r="1" class="fav-fill"/>
+  <circle cx="25" cy="7" r="1" class="fav-fill"/>
+  <circle cx="7" cy="25" r="1" class="fav-fill"/>
+  <circle cx="25" cy="25" r="1" class="fav-fill"/>
+</svg>
