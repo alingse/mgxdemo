@@ -280,6 +280,18 @@ def _verify_session_access_with_read_only(
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
 
+def _status_to_event_type(status: ExecutionStatus) -> str:
+    """将执行状态映射为 SSE 事件类型"""
+    return {
+        ExecutionStatus.THINKING: "thinking",
+        ExecutionStatus.TOOL_CALLING: "tool_calling",
+        ExecutionStatus.TOOL_EXECUTING: "tool_executing",
+        ExecutionStatus.TOOL_COMPLETED: "tool_completed",
+        ExecutionStatus.COMPLETED: "completed",
+        ExecutionStatus.FAILED: "failed",
+    }.get(status, "step")
+
+
 def _save_execution_step(
     db: Session,
     session_id: str,
@@ -321,27 +333,12 @@ def _save_execution_step(
     # 2. 推送SSE事件（实时通知）
     queue = get_event_queue(session_id)
     try:
-        # 构建事件数据
-        event_data = {"type": "step", "data": step.to_dict()}
-
-        # 根据状态设置事件类型
-        if status == ExecutionStatus.THINKING:
-            event_type = "thinking"
-        elif status == ExecutionStatus.TOOL_CALLING:
-            event_type = "tool_calling"
-        elif status == ExecutionStatus.TOOL_EXECUTING:
-            event_type = "tool_executing"
-        elif status == ExecutionStatus.TOOL_COMPLETED:
-            event_type = "tool_completed"
-        elif status == ExecutionStatus.COMPLETED:
-            event_type = "completed"
-        elif status == ExecutionStatus.FAILED:
-            event_type = "failed"
-        else:
-            event_type = "step"
-
-        # 非阻塞推送（如果队列满则丢弃最旧的事件，保留最新的）
-        event = {"data": event_data, "event": event_type, "id": f"step_{step.id}"}
+        event_type = _status_to_event_type(status)
+        event = {
+            "data": {"type": "step", "data": step.to_dict()},
+            "event": event_type,
+            "id": f"step_{step.id}"
+        }
         if _emit_event_nonblocking(queue, event, f"{event_type} for session {session_id}"):
             logger.info(f"[SSE] Emitted {event_type} for session {session_id}")
 

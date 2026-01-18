@@ -187,9 +187,15 @@ h1 {
                 parent_dir.rmdir()
 
 
+_sandbox_service_instance: SandboxService | None = None
+
+
 def get_sandbox_service() -> SandboxService:
-    """Get the sandbox service instance."""
-    return SandboxService()
+    """Get the sandbox service instance (singleton)."""
+    global _sandbox_service_instance
+    if _sandbox_service_instance is None:
+        _sandbox_service_instance = SandboxService()
+    return _sandbox_service_instance
 
 
 def get_sandbox_path(user_id: int, session_id: str) -> Path:
